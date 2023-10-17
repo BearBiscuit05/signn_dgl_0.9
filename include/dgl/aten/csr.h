@@ -437,6 +437,12 @@ COOMatrix CSRRowWiseSampling(
     FloatArray prob = FloatArray(),
     bool replace = true);
 
+int32_t CSRSamplingWithEdge(
+  IdArray& cached_indptr ,IdArray& cached_indices,
+  IdArray& sampleIDs ,int seedNUM, int fanNUM,
+  IdArray& outSRC, IdArray& outDST
+);
+
 /*!
  * \brief Randomly select a fixed number of non-zero entries for each edge type
  *        along each given row independently.

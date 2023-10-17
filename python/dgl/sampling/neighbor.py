@@ -12,6 +12,7 @@ __all__ = [
     'sample_etype_neighbors',
     'sample_neighbors',
     'sample_neighbors_biased',
+    'sample_with_edge',
     'select_topk']
 
 def sample_etype_neighbors(g, nodes, etype_field, fanout, edge_dir='in', prob=None,
@@ -148,6 +149,18 @@ def sample_etype_neighbors(g, nodes, etype_field, fanout, edge_dir='in', prob=No
     return ret if output_device is None else ret.to(output_device)
 
 DGLHeteroGraph.sample_etype_neighbors = utils.alias_func(sample_etype_neighbors)
+
+def sample_with_edge(indptr,indices,sampleIDs,seedNUM,fanNUM,outSRC,outDST):
+    _indptr = F.to_dgl_nd(indptr)
+    _indices = F.to_dgl_nd(indices)
+    _sampleIDs = F.to_dgl_nd(sampleIDs)
+    _outSRC = F.to_dgl_nd(outSRC)
+    _outDST = F.to_dgl_nd(outDST)
+    arr = _CAPI_DGLSampleNeighborsWithEdge(_indptr,_indices,_sampleIDs,seedNUM,fanNUM,_outSRC,_outDST)
+    outSRC = utils.toindex(arr(0),dtype='int32').tousertensor()
+    outDST = utils.toindex(arr(1),dtype='int32').tousertensor()
+    NUMArray = utils.toindex(arr(2),dtype='int32').tousertensor()
+    return NUMArray[0]
 
 def sample_neighbors(g, nodes, fanout, edge_dir='in', prob=None, replace=False,
                      copy_ndata=True, copy_edata=True, _dist_training=False,

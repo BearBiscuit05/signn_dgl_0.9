@@ -413,6 +413,15 @@ HeteroSubgraph SampleNeighborsBiased(
   return ret;
 }
 
+int32_t SampleWithEdge(
+  IdArray& indptr ,IdArray& indices,
+  IdArray& sampleIDs ,int seedNUM, int fanNUM,
+  IdArray& outSRC, IdArray& outDST
+  ) {
+  int32_t NUM = aten::CSRSamplingWithEdge(indptr ,indices ,sampleIDs ,seedNUM ,fanNUM ,outSRC ,outDST); 
+  return NUM;
+}
+
 DGL_REGISTER_GLOBAL("sampling.neighbor._CAPI_DGLSampleNeighborsEType")
 .set_body([] (DGLArgs args, DGLRetValue *rv) {
     HeteroGraphRef hg = args[0];
@@ -436,6 +445,23 @@ DGL_REGISTER_GLOBAL("sampling.neighbor._CAPI_DGLSampleNeighborsEType")
 
     *rv = HeteroSubgraphRef(subg);
   });
+
+// _CAPI_DGLSampleNeighborsWithEdge
+DGL_REGISTER_GLOBAL("sampling.neighbor._CAPI_DGLSampleNeighborsWithEdge")
+.set_body([] (DGLArgs args, DGLRetValue *rv) {
+      IdArray cached_indptr = args[0];
+      IdArray cached_indices = args[1];
+      IdArray sampleIDs = args[2];
+      int seedNUM = args[3];
+      int fanNUM = args[4];
+      IdArray outSRC = args[5];
+      IdArray outDST = args[6];
+      int NUM = sampling::SampleWithEdge(
+        cached_indptr,cached_indices,sampleIDs,seedNUM,fanNUM,outSRC,outDST);
+      IdArray NUMArray = Full(NUM ,1 , sizeof(int)*8,cached_indptr->ctx);
+      *rv = ConvertNDArrayVectorToPackedFunc({outSRC, outDST, NUMArray});
+  });
+
 
 DGL_REGISTER_GLOBAL("sampling.neighbor._CAPI_DGLSampleNeighbors")
 .set_body([] (DGLArgs args, DGLRetValue *rv) {

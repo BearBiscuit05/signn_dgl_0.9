@@ -56,6 +56,27 @@ __global__ void _CSRRowWiseSampleDegreeKernel(
   }
 }
 
+template<typename IdType>
+__global__ void _CSRRowWiseSampleDegreeWithEdgeKernel(
+    const int64_t num_picks,
+    const int64_t num_rows,
+    const IdType * const in_rows,
+    const IdType * const in_ptr,
+    IdType * const out_deg) {
+  const int tIdx = threadIdx.x + blockIdx.x*blockDim.x;
+
+  if (tIdx < num_rows) {
+    const int in_row = in_rows[tIdx];
+    const int out_row = tIdx;
+    out_deg[out_row] = min(static_cast<IdType>(num_picks), in_ptr[in_row*2+1]-in_ptr[in_row*2]);
+
+    if (out_row == num_rows-1) {
+      // make the prefixsum work
+      out_deg[num_rows] = 0;
+    }
+  }
+}
+
 /**
 * @brief Compute the size of each row in the sampled CSR, with replacement.
 *
@@ -176,6 +197,54 @@ __global__ void _CSRRowWiseSampleUniformKernel(
   }
 }
 
+template<typename IdType, int BLOCK_CTAS, int TILE_SIZE>
+__global__ void _CSRRowWiseSampleWithEdgeKernel(
+    const uint64_t rand_seed,
+    int64_t num_picks,      // fanout
+    int64_t num_rows,       // seedNUM
+    IdType * in_rows, // seeds
+    IdType * in_ptr,
+    IdType * in_index,  
+    IdType * out_ptr, // write place
+    IdType * out_rows,      // dst
+    IdType * out_cols) {    // src
+  // we assign one warp per row
+ 
+  assert(BLOCK_CTAS == blockDim.x);
+  const size_t block_start = TILE_SIZE * blockIdx.x;
+  const size_t block_end = TILE_SIZE * (blockIdx.x + 1);
+  int idx = blockIdx.x * blockDim.x + threadIdx.x;   
+  
+  curandStateXORWOW_t local_state;
+  curand_init(rand_seed+idx,0,0,&local_state);
+
+  for (size_t index = threadIdx.x + block_start; index < block_end;
+       index += BLOCK_CTAS) {
+      if (index < num_rows) {
+        const int64_t row = in_rows[index];
+        const int64_t in_row_start = in_ptr[row*2];
+        const int64_t deg = in_ptr[row*2+1] - in_row_start;
+        const int64_t out_row_start = out_ptr[index];
+        if (deg <= num_picks) {
+            size_t j = 0;
+            for (; j < deg; ++j) {
+                out_rows[out_row_start + j] = row;
+                out_cols[out_row_start + j] = in_index[in_row_start + j];
+            }
+        } else {
+          for (int j = 0; j < num_picks; ++j) {
+              int selected_j = curand(&local_state) % (deg - j);
+              int selected_node_id = in_index[in_row_start + selected_j];
+              out_rows[out_row_start + j] = row;
+              out_cols[out_row_start + j] = selected_node_id;
+              in_index[in_row_start + selected_j] = in_index[in_row_start+deg-j-1];
+              in_index[in_row_start+deg-j-1] = selected_node_id;
+          }
+        } 
+      }
+    }
+}
+
 /**
 * @brief Perform row-wise uniform sampling on a CSR matrix,
 * and generate a COO matrix, with replacement.
@@ -239,6 +308,102 @@ __global__ void _CSRRowWiseSampleUniformReplaceKernel(
 
 
 ///////////////////////////// CSR sampling //////////////////////////
+
+template <DLDeviceType XPU, typename IdType>
+int32_t CSRSamplingWithEdgeUniform(
+    IdArray& indptr ,IdArray& indices,
+    IdArray& sampleIDs ,int seedNUM, int num_picks,
+    IdArray& outSRC, IdArray& outDST
+) {
+  //std::cout << "cuda CSRSamplingWithEdgeUniform func success..." << std::endl;
+  const auto& ctx = indptr->ctx;
+  auto device = runtime::DeviceAPI::Get(ctx);
+  cudaStream_t stream = 0;
+
+  int64_t num_rows = sampleIDs->shape[0];
+  IdType * slice_rows = static_cast<IdType*>(sampleIDs->data);
+
+  IdType* in_ptr = static_cast<IdType*>(indptr->data);
+  IdType* in_cols = static_cast<IdType*>(indices->data);
+  IdType* out_rows = static_cast<IdType*>(outDST->data);
+  IdType* out_cols = static_cast<IdType*>(outSRC->data);
+
+  // compute degree
+  IdType * out_deg = static_cast<IdType*>(
+      device->AllocWorkspace(ctx, (num_rows+1)*sizeof(IdType)));
+
+  
+  const dim3 block_(512);
+  const dim3 grid_((num_rows+block_.x-1)/block_.x);
+  _CSRRowWiseSampleDegreeWithEdgeKernel<<<grid_, block_, 0, stream>>>(
+      num_picks, num_rows, slice_rows, in_ptr, out_deg);
+  
+
+  
+  // fill out_ptr
+  // because the elements number picked per row (out_deg info) is given already, so we can determine the ind_ptr now
+  IdType * out_ptr = static_cast<IdType*>(
+      device->AllocWorkspace(ctx, (num_rows+1)*sizeof(IdType)));
+  size_t prefix_temp_size = 0;
+  CUDA_CALL(cub::DeviceScan::ExclusiveSum(nullptr, prefix_temp_size,
+      out_deg,
+      out_ptr,
+      num_rows+1,
+      stream));
+  void * prefix_temp = device->AllocWorkspace(ctx, prefix_temp_size);
+  CUDA_CALL(cub::DeviceScan::ExclusiveSum(prefix_temp, prefix_temp_size,
+      out_deg,
+      out_ptr,
+      num_rows+1,
+      stream));
+  device->FreeWorkspace(ctx, prefix_temp);
+  device->FreeWorkspace(ctx, out_deg);
+
+  cudaEvent_t copyEvent;
+  CUDA_CALL(cudaEventCreate(&copyEvent));
+
+  IdType new_len;
+  device->CopyDataFromTo(out_ptr, num_rows*sizeof(new_len), &new_len, 0,
+        sizeof(new_len),
+        ctx,
+        DGLContext{kDLCPU, 0},
+        indptr->dtype);
+  CUDA_CALL(cudaEventRecord(copyEvent, stream));
+
+  const uint64_t random_seed = RandomEngine::ThreadLocal()->RandInt(1000000000);
+  
+  const int slice = 1024;
+  const int blockSize = 256;
+  int steps = (num_rows + slice - 1) / slice;
+  dim3 grid(steps);
+  dim3 block(blockSize);
+  _CSRRowWiseSampleWithEdgeKernel<IdType, blockSize, slice><<<grid, block, 0, stream>>>(
+      random_seed,
+      num_picks,
+      num_rows,
+      slice_rows,
+      in_ptr,
+      in_cols,
+      out_ptr,
+      out_rows,
+      out_cols);
+
+  device->FreeWorkspace(ctx, out_ptr);
+
+  // wait for copying `new_len` to finish
+  CUDA_CALL(cudaEventSynchronize(copyEvent));
+  CUDA_CALL(cudaEventDestroy(copyEvent));
+  outDST = outDST.CreateView({new_len}, outDST->dtype);
+  outSRC = outSRC.CreateView({new_len}, outSRC->dtype);
+  return new_len;
+}
+
+template int32_t CSRSamplingWithEdgeUniform<kDLGPU, int32_t>(
+    IdArray& ,IdArray&,IdArray& ,int, int, IdArray& ,IdArray&);
+template int32_t CSRSamplingWithEdgeUniform<kDLGPU, int64_t>(
+    IdArray&  ,IdArray& ,IdArray& ,int , int ,IdArray& , IdArray&);
+
+
 
 template <DLDeviceType XPU, typename IdType>
 COOMatrix CSRRowWiseSamplingUniform(CSRMatrix mat,

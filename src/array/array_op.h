@@ -159,6 +159,13 @@ COOMatrix COOReorder(COOMatrix coo, runtime::NDArray new_row_ids, runtime::NDArr
 template <DLDeviceType XPU, typename IdType>
 CSRMatrix CSRRemove(CSRMatrix csr, IdArray entries);
 
+template <DLDeviceType XPU, typename IdType>
+int32_t CSRSamplingWithEdge(
+  IdArray& cached_indptr ,IdArray& cached_indices,
+  IdArray& sampleIDs ,int seedNUM, int fanNUM,
+  IdArray& outSRC, IdArray& outDST
+);
+
 // FloatType is the type of probability data.
 template <DLDeviceType XPU, typename IdType, typename FloatType>
 COOMatrix CSRRowWiseSampling(
@@ -170,6 +177,14 @@ COOMatrix CSRRowWisePerEtypeSampling(
     CSRMatrix mat, IdArray rows, IdArray etypes,
     const std::vector<int64_t>& num_samples, FloatArray prob, bool replace,
     bool etype_sorted);
+
+template <DLDeviceType XPU, typename IdType>
+int32_t CSRSamplingWithEdgeUniform(
+    IdArray& cached_indptr ,IdArray& cached_indices,
+    IdArray& sampleIDs ,int seedNUM, int fanNUM,
+    IdArray& outSRC, IdArray& outDST
+);
+
 
 template <DLDeviceType XPU, typename IdType>
 COOMatrix CSRRowWiseSamplingUniform(
