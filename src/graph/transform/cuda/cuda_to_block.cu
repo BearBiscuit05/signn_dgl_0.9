@@ -708,7 +708,7 @@ c_FindNeighborByBfs(
   dim3 grid_(steps);
   dim3 block_(blockSize);
   ToMergeTable<blockSize, slice>
-  <<<grid,block>>>(in_nodeTable,in_tmpTable,nodeNUM);
+  <<<grid_,block_>>>(in_nodeTable,in_tmpTable,nodeNUM);
   cudaDeviceSynchronize();
 
 }

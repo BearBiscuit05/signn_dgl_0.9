@@ -2,17 +2,19 @@ import torch
 import dgl
 
 
-# src = torch.Tensor([0,1,2,3,0,1,2,3,2]).to(torch.int32).cuda()
-# dst = torch.Tensor([3,4,5,6,8,6,2,3,6]).to(torch.int32).cuda()
-# uni = torch.ones(20).to(torch.int32).cuda()
-# print(src)
-# print(dst)
-# print(uni)
-# sg1,sg2,sg3 = dgl.remappingNode(src,dst,uni)
 
-# print(sg1)
-# print(sg2)
-# print(sg3)
+
+print("===> Testing remapping func")
+src = torch.Tensor([0,1,2,3,0,1,2,3,2]).to(torch.int32).cuda()
+dst = torch.Tensor([3,4,5,6,8,6,2,3,6]).to(torch.int32).cuda()
+uni = torch.ones(20).to(torch.int32).cuda()
+print("raw src:",src)
+print("raw dst:",dst)
+print("raw uni:",uni)
+sg1,sg2,sg3 = dgl.remappingNode(src,dst,uni)
+print("mapped src:",sg1)
+print("mapped dst:",sg2)
+print("mapped uni:",sg3)
 
 # =========================sampleTest===========================
 # src = torch.Tensor([0,4,4,5,5,7,8,10]).to(torch.int32).cuda()
@@ -44,6 +46,7 @@ import dgl
 nodeTable = torch.Tensor([0,0,1,0,0,0,0,0,0,0]).to(torch.int32).cuda()
 src = torch.Tensor([0,2,4,5,2,4,5,2]).to(torch.int32).cuda()
 dst = torch.Tensor([1,3,7,6,4,2,3,1]).to(torch.int32).cuda()
+print("===> BFS func test")
 print(nodeTable)
 dgl.fastFindNeighbor(nodeTable,src,dst)
 print(nodeTable)
