@@ -86,7 +86,8 @@ __all__ = [
     'to_float',
     'to_double',
     'remappingNode',
-    'loadGraphHalo'
+    'loadGraphHalo',
+    'fastFindNeighbor'
     ]
 
 
@@ -2433,6 +2434,13 @@ def loadGraphHalo(indptr,indices,edges,bound,gap):
     arr = _CAPI_loadHalo(indptr_dgl,indices_dgl,edges_dgl,bounds_dgl,gap)
     indptr = utils.toindex(arr(0),dtype='int32').tousertensor()
     indices = utils.toindex(arr(1),dtype='int32').tousertensor()
+
+def fastFindNeighbor(nodeTable,srcList,dstList):
+    nodeTable_dgl = F.to_dgl_nd(nodeTable)
+    srcList_dgl = F.to_dgl_nd(srcList)
+    dstList_dgl = F.to_dgl_nd(dstList)
+    arr = _CAPI_fastFindNeighbor(nodeTable_dgl,srcList_dgl,dstList_dgl)
+    nodeTable = utils.toindex(arr(0),dtype='int32').tousertensor()
 
 def _coalesce_edge_frame(g, edge_maps, counts, aggregator):
     r"""Coalesce edge features of duplicate edges via given aggregator in g.

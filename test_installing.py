@@ -30,13 +30,20 @@ import dgl
 # print(outDST)
 
 # =========================haloTest===========================
-ptr = torch.Tensor([0,1,4,6,8,10]).to(torch.int32).cuda()
-inlice = torch.Tensor([3,-1,-1,-1,8,6,-1,-1,6,10]).to(torch.int32).cuda()
-edge = torch.Tensor([99,97,96,92,81,110]).to(torch.int32).cuda()
-bound = torch.Tensor([0,3,4,6]).to(torch.int32).cuda()
-gap = 0
-dgl.loadGraphHalo(ptr,inlice,edge,bound,gap)
+# ptr = torch.Tensor([0,1,4,6,8,10]).to(torch.int32).cuda()
+# inlice = torch.Tensor([3,-1,-1,-1,8,6,-1,-1,6,10]).to(torch.int32).cuda()
+# edge = torch.Tensor([99,97,96,92,81,110]).to(torch.int32).cuda()
+# bound = torch.Tensor([0,3,4,6]).to(torch.int32).cuda()
+# gap = 0
+# dgl.loadGraphHalo(ptr,inlice,edge,bound,gap)
 
-# print(sg1)
-print(ptr)
-print(inlice)
+# print(ptr)
+# print(inlice)
+
+# =========================BFSTest===========================
+nodeTable = torch.Tensor([0,0,1,0,0,0,0,0,0,0]).to(torch.int32).cuda()
+src = torch.Tensor([0,2,4,5,2,4,5,2]).to(torch.int32).cuda()
+dst = torch.Tensor([1,3,7,6,4,2,3,1]).to(torch.int32).cuda()
+print(nodeTable)
+dgl.fastFindNeighbor(nodeTable,src,dst)
+print(nodeTable)

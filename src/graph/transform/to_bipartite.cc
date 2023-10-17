@@ -173,7 +173,8 @@ std::tuple<IdArray,IdArray,IdArray>
 ReMapIds(IdArray &lhs_nodes,IdArray &rhs_nodes,IdArray &uni_nodes,bool include_rhs_in_lhs);
 void
 c_loadGraphHalo(IdArray &indptr,IdArray &indices,IdArray &edges,IdArray &bound,int gap);
-
+void
+c_FindNeighborByBfs(IdArray &nodeTable,IdArray &tmpTable,IdArray &srcList,IdArray &dstList);
 
 
 template<>
@@ -217,6 +218,15 @@ loadHalo2Graph<kDLGPU, int32_t>(
   return c_loadGraphHalo(indptr,indices,edges,bound,gap);
 }
 
+template<>
+void
+FindNeighbor<kDLGPU, int32_t>(
+  IdArray &nodeTable,
+  IdArray &srcList,
+  IdArray &dstList) {
+  IdArray tmpTable = Full(0,nodeTable->shape[0],srcList->ctx);
+  c_FindNeighborByBfs(nodeTable,tmpTable,srcList,dstList);
+} 
 
 #endif  // DGL_USE_CUDA
 
@@ -279,6 +289,14 @@ DGL_REGISTER_GLOBAL("transform._CAPI_loadHalo")
     *rv = ConvertNDArrayVectorToPackedFunc({indptr, indices});
   });
 
+DGL_REGISTER_GLOBAL("transform._CAPI_fastFindNeighbor")
+.set_body([] (DGLArgs args, DGLRetValue *rv) {
+    IdArray nodeTable = args[0];
+    IdArray srcList =args[1];
+    IdArray dstList = args[2];
+    FindNeighbor<kDLGPU, int32_t>(nodeTable,srcList,dstList); 
+    *rv = ConvertNDArrayVectorToPackedFunc({nodeTable});
+  });
 
 };  // namespace transform
 
