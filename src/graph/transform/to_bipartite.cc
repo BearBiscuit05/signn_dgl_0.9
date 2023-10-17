@@ -171,6 +171,8 @@ std::tuple<HeteroGraphPtr, std::vector<IdArray>>
 ToBlockGPU64(HeteroGraphPtr, const std::vector<IdArray>&, bool, std::vector<IdArray>* const);
 std::tuple<IdArray,IdArray,IdArray>
 ReMapIds(IdArray &lhs_nodes,IdArray &rhs_nodes,IdArray &uni_nodes,bool include_rhs_in_lhs);
+void
+c_loadGraphHalo(IdArray &indptr,IdArray &indices,IdArray &edges,IdArray &bound,int gap);
 
 
 
@@ -202,6 +204,20 @@ Trans2ReMap<kDLGPU, int32_t>(
                          ) {
   return ReMapIds(lhs_nodes,rhs_nodes,uni_nodes,include_rhs_in_lhs);
 }
+
+template<>
+void
+loadHalo2Graph<kDLGPU, int32_t>(
+                         IdArray &indptr,
+                         IdArray &indices,
+                         IdArray &edges,
+                         IdArray &bound,
+                         int gap
+                         ) {
+  return c_loadGraphHalo(indptr,indices,edges,bound,gap);
+}
+
+
 #endif  // DGL_USE_CUDA
 
 DGL_REGISTER_GLOBAL("transform._CAPI_DGLToBlock")
@@ -250,6 +266,19 @@ DGL_REGISTER_GLOBAL("transform._CAPI_ReMappingId")
           graph_src_nodes,graph_dst_nodes,unqiueSpace,include_rhs_in_lhs); // 新版本存在更改
     *rv = ConvertNDArrayVectorToPackedFunc({new_src, new_dst,unqiue_nodes});
   });
+
+DGL_REGISTER_GLOBAL("transform._CAPI_loadHalo")
+.set_body([] (DGLArgs args, DGLRetValue *rv) {
+    IdArray indptr = args[0];
+    IdArray indices =args[1];
+    IdArray edges = args[2];
+    IdArray bound = args[3];
+    int gap = args[4];
+    
+    loadHalo2Graph<kDLGPU, int32_t>(indptr,indices,edges,bound,gap); 
+    *rv = ConvertNDArrayVectorToPackedFunc({indptr, indices});
+  });
+
 
 };  // namespace transform
 

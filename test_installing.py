@@ -14,16 +14,29 @@ import dgl
 # print(sg2)
 # print(sg3)
 
-src = torch.Tensor([0,4,4,5,5,7,8,10]).to(torch.int32).cuda()
-dst = torch.Tensor([2,10,5,6,7,8,9,10,12,14]).to(torch.int32).cuda()
-uni = torch.Tensor([0,1]).to(torch.int32).cuda()
-seed_num = 2
-fanout = 5
-outSRC = torch.ones(20).to(torch.int32).cuda()
-outDST = torch.ones(20).to(torch.int32).cuda()
-print(outSRC)
-print(outDST)
-NUM = dgl.sampling.sample_with_edge(src, dst, uni, seed_num,fanout, outSRC,outDST)
-print(NUM)
-print(outSRC)
-print(outDST)
+# =========================sampleTest===========================
+# src = torch.Tensor([0,4,4,5,5,7,8,10]).to(torch.int32).cuda()
+# dst = torch.Tensor([2,10,5,6,7,8,9,10,12,14]).to(torch.int32).cuda()
+# uni = torch.Tensor([0,1]).to(torch.int32).cuda()
+# seed_num = 2
+# fanout = 5
+# outSRC = torch.ones(20).to(torch.int32).cuda()
+# outDST = torch.ones(20).to(torch.int32).cuda()
+# print(outSRC)
+# print(outDST)
+# NUM = dgl.sampling.sample_with_edge(src, dst, uni, seed_num,fanout, outSRC,outDST)
+# print(NUM)
+# print(outSRC)
+# print(outDST)
+
+# =========================haloTest===========================
+ptr = torch.Tensor([0,1,4,6,8,10]).to(torch.int32).cuda()
+inlice = torch.Tensor([3,-1,-1,-1,8,6,-1,-1,6,10]).to(torch.int32).cuda()
+edge = torch.Tensor([99,97,96,92,81,110]).to(torch.int32).cuda()
+bound = torch.Tensor([0,3,4,6]).to(torch.int32).cuda()
+gap = 0
+dgl.loadGraphHalo(ptr,inlice,edge,bound,gap)
+
+# print(sg1)
+print(ptr)
+print(inlice)

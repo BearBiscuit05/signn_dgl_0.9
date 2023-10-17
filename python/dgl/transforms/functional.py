@@ -85,7 +85,8 @@ __all__ = [
     'to_half',
     'to_float',
     'to_double',
-    'remappingNode'
+    'remappingNode',
+    'loadGraphHalo'
     ]
 
 
@@ -2423,6 +2424,15 @@ def remappingNode(arr1,arr2,arr3):
     arr2_ = utils.toindex(arr(1),dtype='int32').tousertensor()
     arr3_ = utils.toindex(arr(2),dtype='int32').tousertensor()
     return arr1_,arr2_,arr3_
+
+def loadGraphHalo(indptr,indices,edges,bound,gap):
+    indptr_dgl = F.to_dgl_nd(indptr)
+    indices_dgl = F.to_dgl_nd(indices)
+    edges_dgl = F.to_dgl_nd(edges)
+    bounds_dgl = F.to_dgl_nd(bound)
+    arr = _CAPI_loadHalo(indptr_dgl,indices_dgl,edges_dgl,bounds_dgl,gap)
+    indptr = utils.toindex(arr(0),dtype='int32').tousertensor()
+    indices = utils.toindex(arr(1),dtype='int32').tousertensor()
 
 def _coalesce_edge_frame(g, edge_maps, counts, aggregator):
     r"""Coalesce edge features of duplicate edges via given aggregator in g.

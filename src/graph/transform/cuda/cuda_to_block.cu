@@ -22,10 +22,12 @@
 #include <dgl/runtime/device_api.h>
 #include <dgl/immutable_graph.h>
 #include <cuda_runtime.h>
+#include <curand_kernel.h>
 #include <utility>
 #include <algorithm>
 #include <memory>
-
+#include <chrono>
+#include <cub/cub.cuh>
 #include "../../../runtime/cuda/cuda_common.h"
 #include "../../heterograph.h"
 #include "../to_bipartite.h"
@@ -200,6 +202,49 @@ class DeviceNodeMapMaker {
  private:
   IdType max_num_nodes_;
 };
+
+
+
+template <int BLOCK_SIZE, int TILE_SIZE>
+__global__ void graph_halo_merge_kernel(
+    int* edge,int* bound,
+    int* halos,int* halo_bound,int nodeNUM,
+    int gap,unsigned long random_states
+) {
+    const size_t block_start = TILE_SIZE * blockIdx.x;
+    const size_t block_end = TILE_SIZE * (blockIdx.x + 1);
+    int idx = blockIdx.x * blockDim.x + threadIdx.x;   
+    curandStateXORWOW_t local_state;
+    curand_init(random_states+idx,0,0,&local_state);
+    for (size_t index = threadIdx.x + block_start; index < block_end;
+       index += BLOCK_SIZE) {
+        if (index < nodeNUM) {
+            int rid = index;
+            int startptr = bound[index*2+1];
+            int endptr = bound[index*2+2];
+            int space = endptr - startptr;
+            int off = halo_bound[rid] + gap;
+            int len = halo_bound[rid+1] - off;
+            if (len > 0) {
+                if (space < len) {
+                    for (int j = 0; j < space; j++) {
+                        int selected_j = curand(&local_state) % (len - j);
+                        int selected_id = halos[off + selected_j];
+                        edge[startptr++] = selected_id;
+                        halos[off + selected_j] = halos[off+len-j-1];
+                        halos[off+len-j-1] = selected_id;
+                    }
+                    bound[index*2+1] = startptr;
+                } else {
+                    for (int j = 0; j < len; j++) {
+                        edge[startptr++] = halos[off + j];
+                    }
+                    bound[index*2+1] = startptr;
+                }
+            }
+        }
+    }
+}
 
 
 // Since partial specialization is not allowed for functions, use this as an
@@ -520,6 +565,34 @@ ToBlockGPUWithoutGraph(
     return std::make_tuple(new_lhs, new_rhs, uni_nodes);
 }
 
+void 
+ToLoadGraphHalo(
+  IdArray &indptr,
+  IdArray &indices, 
+  IdArray &edges,
+  IdArray &bound,
+  int gap
+) {
+  int32_t NUM = bound->shape[0] - 1;
+  const int slice = 1024;
+  const int blockSize = 256;
+  int steps = (NUM + slice - 1) / slice;
+  dim3 grid(steps);
+  dim3 block(blockSize);
+  
+  unsigned long timeseed =
+      std::chrono::system_clock::now().time_since_epoch().count();
+
+  int32_t* in_ptr = static_cast<int32_t*>(indptr->data);
+  int32_t* in_cols = static_cast<int32_t*>(indices->data);
+  int32_t* in_edges = static_cast<int32_t*>(edges->data);
+  int32_t* in_bound = static_cast<int32_t*>(bound->data);
+
+  graph_halo_merge_kernel<blockSize, slice>
+  <<<grid,block>>>(in_cols,in_ptr,in_edges,in_bound,NUM,gap,timeseed);
+  cudaDeviceSynchronize();
+}
+
 }  // namespace
 
 // Use explicit names to get around MSVC's broken mangling that thinks the following two
@@ -554,6 +627,16 @@ ReMapIds(
     bool include_rhs_in_lhs) {
   //printf("get in cuda kernel cu \n");
   return ToBlockGPUWithoutGraph<int32_t>(lhs_nodes,rhs_nodes,uni_nodes,include_rhs_in_lhs);
+}
+
+void
+c_loadGraphHalo(
+  IdArray &indptr,
+  IdArray &indices,
+  IdArray &edges,
+  IdArray &bound,
+  int gap) {
+    ToLoadGraphHalo(indptr,indices,edges,bound,gap);
 }
 
 }  // namespace transform

@@ -54,6 +54,11 @@ std::tuple<IdArray, IdArray, IdArray>
 Trans2ReMap(
 IdArray &lhs_nodes,IdArray &rhs_nodes,IdArray &uni_nodes,bool include_rhs_in_lhs);
 
+template<DLDeviceType XPU, typename IdType>
+void
+loadHalo2Graph(
+IdArray &indptr,IdArray &indices,IdArray &edges,IdArray &bound,int gap);
+
 
 }  // namespace transform
 }  // namespace dgl
