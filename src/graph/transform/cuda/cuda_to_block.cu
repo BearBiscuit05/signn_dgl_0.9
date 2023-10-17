@@ -148,6 +148,55 @@ class DeviceNodeMapMaker {
     }
   }
 
+  void Make(
+      IdArray& lhs_nodes,
+      IdArray& rhs_nodes,
+      DeviceNodeMap<IdType> * const node_maps,
+      int64_t * const count_lhs_device,
+      IdArray& lhs_device,
+      cudaStream_t stream) {
+    const int64_t num_ntypes = 2;
+
+    CUDA_CALL(cudaMemsetAsync(
+      count_lhs_device,
+      0,
+      num_ntypes*sizeof(*count_lhs_device),
+      stream));
+
+    // possibly dublicate lhs nodes
+    const int64_t lhs_num_ntypes = static_cast<int64_t>(1);
+    const int64_t rhs_num_ntypes = static_cast<int64_t>(1);
+    
+    for (int64_t ntype = 0; ntype < rhs_num_ntypes; ++ntype) {
+      const IdArray& nodes = rhs_nodes;
+      if (nodes->shape[0] > 0) {
+        CHECK_EQ(nodes->ctx.device_type, kDLGPU);
+        node_maps->RhsHashTable(ntype).FillWithDuplicates(
+            nodes.Ptr<IdType>(),
+            nodes->shape[0],
+            lhs_device.Ptr<IdType>(),
+            count_lhs_device+ntype,
+            stream);
+      }
+    }
+    
+    for (int64_t ntype = 0; ntype < lhs_num_ntypes; ++ntype) {
+      const IdArray& nodes = lhs_nodes;
+      if (nodes->shape[0] > 0) {
+        CHECK_EQ(nodes->ctx.device_type, kDLGPU);
+        node_maps->LhsHashTable(ntype).FillWithDuplicates(
+            nodes.Ptr<IdType>(),
+            nodes->shape[0],
+            lhs_device.Ptr<IdType>(),
+            count_lhs_device+ntype,
+            stream);
+      }
+    }
+    
+    
+    
+  }
+
  private:
   IdType max_num_nodes_;
 };
@@ -377,6 +426,100 @@ ToBlockGPU(
   return std::make_tuple(new_graph, induced_edges);
 }
 
+
+template<typename IdType>
+std::tuple<IdArray, IdArray,IdArray>
+ToBlockGPUWithoutGraph(
+    IdArray &lhs_nodes,
+    IdArray &rhs_nodes, 
+    IdArray &uni_nodes,
+    bool include_rhs_in_lhs
+    ) {
+    cudaStream_t stream = runtime::getCurrentCUDAStream();
+    auto ctx = lhs_nodes->ctx;
+    auto device = runtime::DeviceAPI::Get(ctx);
+    CHECK_EQ(ctx.device_type, kDLGPU);
+
+    const int64_t num_etypes = 1;
+    const int64_t num_ntypes = 1;
+
+    std::vector<int64_t> maxNodesPerType(2, 0);
+    
+    // dst add --> src ,dst
+    for (int64_t ntype = 0; ntype < num_ntypes; ++ntype) {
+      maxNodesPerType[ntype+num_ntypes] += rhs_nodes->shape[0];
+      if (include_rhs_in_lhs) {
+        maxNodesPerType[ntype] += rhs_nodes->shape[0];
+      }
+    }
+
+    // src add
+    for (int64_t etype = 0; etype < num_etypes; ++etype) {
+      maxNodesPerType[etype] += lhs_nodes->shape[0];
+    }
+
+    // src list
+    IdArray src_nodes =  NewIdArray(maxNodesPerType[0], ctx, sizeof(IdType)*8);
+    int64_t src_node_offsets = 0;
+    // copy dst --> src
+    if (include_rhs_in_lhs) {
+        device->CopyDataFromTo(rhs_nodes.Ptr<IdType>(), 0,
+            src_nodes.Ptr<IdType>(), src_node_offsets,
+            sizeof(IdType)*rhs_nodes->shape[0],
+            rhs_nodes->ctx, src_nodes->ctx,
+            rhs_nodes->dtype);
+        src_node_offsets += sizeof(IdType)*rhs_nodes->shape[0];
+    }
+    // copy src --> src
+    device->CopyDataFromTo(
+      lhs_nodes.Ptr<IdType>(), 0,
+      src_nodes.Ptr<IdType>(),
+      src_node_offsets,
+      sizeof(IdType)*lhs_nodes->shape[0],
+      rhs_nodes->ctx,
+      src_nodes->ctx,
+      rhs_nodes->dtype);
+    src_node_offsets += sizeof(IdType)*lhs_nodes->shape[0];
+
+    DeviceNodeMapMaker<IdType> maker(maxNodesPerType);
+    DeviceNodeMap<IdType> node_maps(maxNodesPerType, num_ntypes, ctx, stream);
+    
+    std::vector<int64_t> num_nodes_per_type(num_ntypes*2);
+    for (int64_t ntype = 0; ntype < num_ntypes; ++ntype) {
+      num_nodes_per_type[num_ntypes+ntype] = rhs_nodes->shape[0];
+    }
+    
+    int64_t * count_lhs_device = static_cast<int64_t*>(
+        device->AllocWorkspace(ctx, sizeof(int64_t)*num_ntypes*2));
+    
+    maker.Make( 
+        src_nodes,
+        rhs_nodes,
+        &node_maps,
+        count_lhs_device,
+        uni_nodes,
+        stream);
+    
+    device->CopyDataFromTo(
+        count_lhs_device, 0,
+        num_nodes_per_type.data(), 0,
+        sizeof(*num_nodes_per_type.data())*num_ntypes,
+        ctx,
+        DGLContext{kDLCPU, 0},
+        DGLType{kDLInt, 64, 1});
+    device->StreamSync(ctx, stream);
+
+    // wait for the node counts to finish transferring
+    device->FreeWorkspace(ctx, count_lhs_device);
+    
+    uni_nodes->shape[0] = num_nodes_per_type[0];
+
+    IdArray new_lhs;
+    IdArray new_rhs;
+    std::tie(new_lhs, new_rhs) = MapEdgesWithoutGraph(lhs_nodes, rhs_nodes, node_maps, stream);
+    return std::make_tuple(new_lhs, new_rhs, uni_nodes);
+}
+
 }  // namespace
 
 // Use explicit names to get around MSVC's broken mangling that thinks the following two
@@ -400,6 +543,17 @@ ToBlockGPU64(
     bool include_rhs_in_lhs,
     std::vector<IdArray>* const lhs_nodes) {
   return ToBlockGPU<int64_t>(graph, rhs_nodes, include_rhs_in_lhs, lhs_nodes);
+}
+
+std::tuple<IdArray, IdArray, IdArray>
+// ToBlock<kDLGPU, int64_t>
+ReMapIds(
+    IdArray &lhs_nodes,
+    IdArray &rhs_nodes,
+    IdArray &uni_nodes,
+    bool include_rhs_in_lhs) {
+  //printf("get in cuda kernel cu \n");
+  return ToBlockGPUWithoutGraph<int32_t>(lhs_nodes,rhs_nodes,uni_nodes,include_rhs_in_lhs);
 }
 
 }  // namespace transform

@@ -260,6 +260,52 @@ MapEdges(
       std::move(new_lhs), std::move(new_rhs));
 }
 
+template<typename IdType>
+std::tuple<IdArray, IdArray>
+MapEdgesWithoutGraph(
+    IdArray lhs_nodes,
+    IdArray rhs_nodes,
+    const DeviceNodeMap<IdType>& node_map,
+    cudaStream_t stream) {
+  constexpr const int BLOCK_SIZE = 128;
+  constexpr const size_t TILE_SIZE = 1024;
+  auto ctx = lhs_nodes->ctx;
+  IdArray new_lhs;
+  IdArray new_rhs;
+
+  // The next peformance optimization here, is to perform mapping of all edge
+  // types in a single kernel launch.
+  const int64_t num_edge_sets = static_cast<int64_t>(1);
+  for (int64_t etype = 0; etype < num_edge_sets; ++etype) {
+    const int64_t num_edges = lhs_nodes->shape[0];
+
+    new_lhs = NewIdArray(num_edges, ctx, sizeof(IdType)*8);
+    new_rhs = NewIdArray(num_edges, ctx, sizeof(IdType)*8);
+
+    const int src_type = 0;
+    const int dst_type = 0;
+    const dim3 grid(RoundUpDiv(num_edges, TILE_SIZE), 2);
+    const dim3 block(BLOCK_SIZE);
+
+    // map the srcs
+    map_edge_ids<IdType, BLOCK_SIZE, TILE_SIZE><<<
+      grid,
+      block,
+      0,
+      stream>>>(
+      lhs_nodes.Ptr<IdType>(),
+      new_lhs.Ptr<IdType>(),
+      rhs_nodes.Ptr<IdType>(),
+      new_rhs.Ptr<IdType>(),
+      num_edges,
+      node_map.LhsHashTable(src_type).DeviceHandle(),
+      node_map.RhsHashTable(dst_type).DeviceHandle());
+    CUDA_CALL(cudaGetLastError());
+  }
+
+  return std::tuple<IdArray, IdArray>(
+      std::move(new_lhs), std::move(new_rhs));
+}
 
 }  // namespace cuda
 }  // namespace transform

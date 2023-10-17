@@ -169,6 +169,10 @@ std::tuple<HeteroGraphPtr, std::vector<IdArray>>
 ToBlockGPU32(HeteroGraphPtr, const std::vector<IdArray>&, bool, std::vector<IdArray>* const);
 std::tuple<HeteroGraphPtr, std::vector<IdArray>>
 ToBlockGPU64(HeteroGraphPtr, const std::vector<IdArray>&, bool, std::vector<IdArray>* const);
+std::tuple<IdArray,IdArray,IdArray>
+ReMapIds(IdArray &lhs_nodes,IdArray &rhs_nodes,IdArray &uni_nodes,bool include_rhs_in_lhs);
+
+
 
 template<>
 std::tuple<HeteroGraphPtr, std::vector<IdArray>>
@@ -188,6 +192,16 @@ ToBlock<kDLGPU, int64_t>(HeteroGraphPtr graph,
   return ToBlockGPU64(graph, rhs_nodes, include_rhs_in_lhs, lhs_nodes);
 }
 
+template<>
+std::tuple<IdArray, IdArray, IdArray>
+Trans2ReMap<kDLGPU, int32_t>(
+                         IdArray &lhs_nodes,
+                         IdArray &rhs_nodes,
+                         IdArray &uni_nodes,
+                         bool include_rhs_in_lhs
+                         ) {
+  return ReMapIds(lhs_nodes,rhs_nodes,uni_nodes,include_rhs_in_lhs);
+}
 #endif  // DGL_USE_CUDA
 
 DGL_REGISTER_GLOBAL("transform._CAPI_DGLToBlock")
@@ -221,6 +235,20 @@ DGL_REGISTER_GLOBAL("transform._CAPI_DGLToBlock")
     ret.push_back(induced_edges_ref);
 
     *rv = ret;
+  });
+
+DGL_REGISTER_GLOBAL("transform._CAPI_ReMappingId")
+.set_body([] (DGLArgs args, DGLRetValue *rv) {
+    IdArray graph_src_nodes = args[0];
+    IdArray graph_dst_nodes =args[1];
+    IdArray unqiueSpace = args[2];
+    IdArray new_src;
+    IdArray new_dst;
+    IdArray unqiue_nodes;
+    bool include_rhs_in_lhs = true;
+    std::tie(new_src, new_dst , unqiue_nodes) = Trans2ReMap<kDLGPU, int32_t>(
+          graph_src_nodes,graph_dst_nodes,unqiueSpace,include_rhs_in_lhs); // 新版本存在更改
+    *rv = ConvertNDArrayVectorToPackedFunc({new_src, new_dst,unqiue_nodes});
   });
 
 };  // namespace transform

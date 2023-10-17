@@ -84,7 +84,8 @@ __all__ = [
     'laplacian_pe',
     'to_half',
     'to_float',
-    'to_double'
+    'to_double',
+    'remappingNode'
     ]
 
 
@@ -2412,6 +2413,16 @@ def to_block(g, dst_nodes=None, include_dst_in_src=True, src_nodes=None):
     utils.set_new_frames(new_graph, node_frames=node_frames, edge_frames=edge_frames)
 
     return new_graph
+
+def remappingNode(arr1,arr2,arr3):
+    arr1_dgl = F.to_dgl_nd(arr1)
+    arr2_dgl = F.to_dgl_nd(arr2)
+    arr3_dgl = F.to_dgl_nd(arr3)
+    arr = _CAPI_ReMappingId(arr1_dgl,arr2_dgl,arr3_dgl)
+    arr1_ = utils.toindex(arr(0),dtype='int32').tousertensor()
+    arr2_ = utils.toindex(arr(1),dtype='int32').tousertensor()
+    arr3_ = utils.toindex(arr(2),dtype='int32').tousertensor()
+    return arr1_,arr2_,arr3_
 
 def _coalesce_edge_frame(g, edge_maps, counts, aggregator):
     r"""Coalesce edge features of duplicate edges via given aggregator in g.

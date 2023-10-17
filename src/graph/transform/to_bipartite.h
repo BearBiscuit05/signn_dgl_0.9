@@ -49,6 +49,12 @@ std::tuple<HeteroGraphPtr, std::vector<IdArray>>
 ToBlock(HeteroGraphPtr graph, const std::vector<IdArray> &rhs_nodes,
         bool include_rhs_in_lhs, std::vector<IdArray>* lhs_nodes);
 
+template<DLDeviceType XPU, typename IdType>
+std::tuple<IdArray, IdArray, IdArray>
+Trans2ReMap(
+IdArray &lhs_nodes,IdArray &rhs_nodes,IdArray &uni_nodes,bool include_rhs_in_lhs);
+
+
 }  // namespace transform
 }  // namespace dgl
 
