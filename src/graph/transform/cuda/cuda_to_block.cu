@@ -252,7 +252,8 @@ __global__ void ToUseBfsKernel(
   int* tmpTable,
   int* srcList,
   int* dstList,
-  int64_t edgeNUM) {
+  int64_t edgeNUM,
+  bool acc) {
     const size_t block_start = TILE_SIZE * blockIdx.x;
     const size_t block_end = TILE_SIZE * (blockIdx.x + 1);
     for (size_t index = threadIdx.x + block_start; index < block_end;
@@ -260,9 +261,13 @@ __global__ void ToUseBfsKernel(
       if (index < edgeNUM) {
         int srcID = srcList[index];
         int dstID = dstList[index];
-        if(nodeTable[srcID] == 1 && nodeTable[dstID] == 0) {
+        if(nodeTable[srcID] > 0 && nodeTable[dstID] == 0) {
           // src --> dst
-          atomicExch(&tmpTable[dstID], 1);
+          if (acc) {
+            atomicAdd(&tmpTable[dstID], 1);
+          } else {
+            atomicExch(&tmpTable[dstID], 1);
+          }
         }
       }
     }
@@ -272,15 +277,20 @@ template <int BLOCK_SIZE, int TILE_SIZE>
 __global__ void ToMergeTable(
   int* nodeTable,
   int* tmpTable,
-  int64_t nodeNUM
+  int64_t nodeNUM,
+  bool acc
 ) {
   const size_t block_start = TILE_SIZE * blockIdx.x;
   const size_t block_end = TILE_SIZE * (blockIdx.x + 1);
   for (size_t index = threadIdx.x + block_start; index < block_end;
       index += BLOCK_SIZE) {
     if (index < nodeNUM) {
-      if(nodeTable[index] == 0 && tmpTable[index] == 1) {
-        nodeTable[index] = 1;
+      if(tmpTable[index] > 0) {
+        if (acc) {
+          nodeTable[index] += tmpTable[index];
+        } else {
+          nodeTable[index] = tmpTable[index];
+        }
       }
     }
   }
@@ -708,7 +718,8 @@ c_FindNeighborByBfs(
   IdArray &nodeTable,
   IdArray &tmpTable,
   IdArray &srcList,
-  IdArray &dstList) {
+  IdArray &dstList,
+  bool acc) {
 
   int64_t NUM = srcList->shape[0];
   const int slice = 1024;
@@ -722,9 +733,8 @@ c_FindNeighborByBfs(
   int32_t* in_srcList = static_cast<int32_t*>(srcList->data);
   int32_t* in_dstList = static_cast<int32_t*>(dstList->data);
 
-  
   ToUseBfsKernel<blockSize, slice>
-  <<<grid,block>>>(in_nodeTable,in_tmpTable,in_srcList,in_dstList,NUM);
+  <<<grid,block>>>(in_nodeTable,in_tmpTable,in_srcList,in_dstList,NUM,acc);
   cudaDeviceSynchronize();
 
   int64_t nodeNUM = nodeTable->shape[0];
@@ -732,9 +742,8 @@ c_FindNeighborByBfs(
   dim3 grid_(steps);
   dim3 block_(blockSize);
   ToMergeTable<blockSize, slice>
-  <<<grid_,block_>>>(in_nodeTable,in_tmpTable,nodeNUM);
+  <<<grid_,block_>>>(in_nodeTable,in_tmpTable,nodeNUM,acc);
   cudaDeviceSynchronize();
-
 }
 
 void
@@ -767,7 +776,7 @@ c_FindNeigEdgeByBfs(
     dim3 grid_(steps);
     dim3 block_(blockSize);
     ToMergeTable<blockSize, slice>
-    <<<grid_,block_>>>(in_nodeTable,in_tmpNodeTable,nodeNUM);
+    <<<grid_,block_>>>(in_nodeTable,in_tmpNodeTable,nodeNUM,false);
     cudaDeviceSynchronize();
   }
 
