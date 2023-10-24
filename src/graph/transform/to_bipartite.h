@@ -64,6 +64,11 @@ void
 FindNeighbor(
 IdArray &nodeTable, IdArray &srcList, IdArray &dstList);
 
+template<DLDeviceType XPU, typename IdType>
+void
+FindNeigEdge(
+IdArray &nodeTable,IdArray &edgeTable,IdArray &srcList,IdArray &dstList);
+
 }  // namespace transform
 }  // namespace dgl
 

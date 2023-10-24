@@ -175,7 +175,8 @@ void
 c_loadGraphHalo(IdArray &indptr,IdArray &indices,IdArray &edges,IdArray &bound,int gap);
 void
 c_FindNeighborByBfs(IdArray &nodeTable,IdArray &tmpTable,IdArray &srcList,IdArray &dstList);
-
+void
+c_FindNeigEdgeByBfs(IdArray &nodeTable,IdArray &tmpNodeTable,IdArray &edgeTable,IdArray &srcList,IdArray &dstList);
 
 template<>
 std::tuple<HeteroGraphPtr, std::vector<IdArray>>
@@ -227,6 +228,17 @@ FindNeighbor<kDLGPU, int32_t>(
   IdArray tmpTable = Full(0,nodeTable->shape[0],srcList->ctx);
   c_FindNeighborByBfs(nodeTable,tmpTable,srcList,dstList);
 } 
+
+template<>
+void
+FindNeigEdge<kDLGPU, int32_t>(
+  IdArray &nodeTable,
+  IdArray &edgeTable,
+  IdArray &srcList,
+  IdArray &dstList) {
+    IdArray tmpNodeTable = Full(0,nodeTable->shape[0],srcList->ctx);
+    c_FindNeigEdgeByBfs(nodeTable,tmpNodeTable,edgeTable,srcList,dstList);
+  }
 
 #endif  // DGL_USE_CUDA
 
@@ -297,6 +309,18 @@ DGL_REGISTER_GLOBAL("transform._CAPI_fastFindNeighbor")
     FindNeighbor<kDLGPU, int32_t>(nodeTable,srcList,dstList); 
     *rv = ConvertNDArrayVectorToPackedFunc({nodeTable});
   });
+
+DGL_REGISTER_GLOBAL("transform._CAPI_fastFindNeigEdge")
+.set_body([] (DGLArgs args, DGLRetValue *rv) {
+    IdArray nodeTable = args[0];
+    IdArray edgeTable = args[1];
+    IdArray srcList =args[2];
+    IdArray dstList = args[3];
+    FindNeigEdge<kDLGPU, int32_t>(nodeTable,edgeTable,srcList,dstList); 
+    *rv = ConvertNDArrayVectorToPackedFunc({nodeTable,edgeTable});
+  });
+
+
 
 };  // namespace transform
 

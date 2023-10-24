@@ -87,7 +87,8 @@ __all__ = [
     'to_double',
     'remappingNode',
     'loadGraphHalo',
-    'fastFindNeighbor'
+    'fastFindNeighbor',
+    'fastFindNeigEdge'
     ]
 
 
@@ -2441,6 +2442,24 @@ def fastFindNeighbor(nodeTable,srcList,dstList):
     dstList_dgl = F.to_dgl_nd(dstList)
     arr = _CAPI_fastFindNeighbor(nodeTable_dgl,srcList_dgl,dstList_dgl)
     nodeTable = utils.toindex(arr(0),dtype='int32').tousertensor()
+
+def fastFindNeigEdge(nodeTable,edgeTable,src,dst):
+    tensorList = [nodeTable,edgeTable,src,dst]
+    for t in tensorList:
+        if t.dtype != th.int32:
+            t = t.to(th.int32)
+        if not t.is_cuda:
+            t = t.to('cuda')
+    nodeTable_dgl = F.to_dgl_nd(nodeTable)
+    edgeTable_dgl = F.to_dgl_nd(edgeTable)
+    srcList_dgl = F.to_dgl_nd(src)
+    dstList_dgl = F.to_dgl_nd(dst)
+    arr = _CAPI_fastFindNeigEdge(nodeTable_dgl,edgeTable_dgl,srcList_dgl,dstList_dgl)
+    nodeTable = utils.toindex(arr(0),dtype='int32').tousertensor()
+    edgeTable = utils.toindex(arr(1),dtype='int32').tousertensor()
+
+
+
 
 def _coalesce_edge_frame(g, edge_maps, counts, aggregator):
     r"""Coalesce edge features of duplicate edges via given aggregator in g.

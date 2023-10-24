@@ -11,6 +11,9 @@ uni = torch.ones(20).to(torch.int32).cuda()
 print("raw src:",src)
 print("raw dst:",dst)
 print("raw uni:",uni)
+### src: int32 cuda 
+### dst: int32 cuda
+### uni: int32 cuda
 sg1,sg2,sg3 = dgl.remappingNode(src,dst,uni)
 print("mapped src:",sg1)
 print("mapped dst:",sg2)
@@ -43,10 +46,20 @@ print("mapped uni:",sg3)
 # print(inlice)
 
 # =========================BFSTest===========================
+# nodeTable = torch.Tensor([0,0,1,0,0,0,0,0,0,0]).to(torch.int32).cuda()
+# src = torch.Tensor([0,2,4,5,2,4,5,2]).to(torch.int32).cuda()
+# dst = torch.Tensor([1,3,7,6,4,2,3,1]).to(torch.int32).cuda()
+# print("===> BFS func test")
+# print(nodeTable)
+# dgl.fastFindNeighbor(nodeTable,src,dst)
+# print(nodeTable)
+
+# =========================BFSEdgeTest===========================
 nodeTable = torch.Tensor([0,0,1,0,0,0,0,0,0,0]).to(torch.int32).cuda()
 src = torch.Tensor([0,2,4,5,2,4,5,2]).to(torch.int32).cuda()
 dst = torch.Tensor([1,3,7,6,4,2,3,1]).to(torch.int32).cuda()
-print("===> BFS func test")
-print(nodeTable)
-dgl.fastFindNeighbor(nodeTable,src,dst)
-print(nodeTable)
+edgeTable = torch.zeros(len(dst),dtype=torch.int32).cuda()
+print("===> BFS edge func test")
+print(edgeTable)
+dgl.fastFindNeigEdge(nodeTable,edgeTable,src,dst)
+print(edgeTable)

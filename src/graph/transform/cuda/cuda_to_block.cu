@@ -286,6 +286,30 @@ __global__ void ToMergeTable(
   }
 }
 
+template <int BLOCK_SIZE, int TILE_SIZE>
+__global__ void ToUseBfsWithEdgeKernel(
+  int* nodeTable,
+  int* tmpTable,
+  int* edgeTable,
+  int* srcList,
+  int* dstList,
+  int64_t edgeNUM) {
+    const size_t block_start = TILE_SIZE * blockIdx.x;
+    const size_t block_end = TILE_SIZE * (blockIdx.x + 1);
+    for (size_t index = threadIdx.x + block_start; index < block_end;
+        index += BLOCK_SIZE) {
+      if (index < edgeNUM) {
+        int srcID = srcList[index];
+        int dstID = dstList[index];
+        if(nodeTable[srcID] == 1 && nodeTable[dstID] == 0) {
+          // src --> dst
+          atomicExch(&tmpTable[dstID], 1);
+          edgeTable[index] = 1;
+        }
+      }
+    }
+}
+
 
 // Since partial specialization is not allowed for functions, use this as an
 // intermediate for ToBlock where XPU = kDLGPU.
@@ -712,6 +736,41 @@ c_FindNeighborByBfs(
   cudaDeviceSynchronize();
 
 }
+
+void
+c_FindNeigEdgeByBfs(
+  IdArray &nodeTable,
+  IdArray &tmpNodeTable,
+  IdArray &edgeTable,
+  IdArray &srcList,
+  IdArray &dstList) {
+    int64_t NUM = srcList->shape[0];
+    const int slice = 1024;
+    const int blockSize = 256;
+    int steps = (NUM + slice - 1) / slice;
+    dim3 grid(steps);
+    dim3 block(blockSize);
+    
+    int32_t* in_nodeTable = static_cast<int32_t*>(nodeTable->data);
+    int32_t* in_tmpNodeTable = static_cast<int32_t*>(tmpNodeTable->data);
+    int32_t* in_edgeTable = static_cast<int32_t*>(edgeTable->data);
+    int32_t* in_srcList = static_cast<int32_t*>(srcList->data);
+    int32_t* in_dstList = static_cast<int32_t*>(dstList->data);
+
+    
+    ToUseBfsWithEdgeKernel<blockSize, slice>
+    <<<grid,block>>>(in_nodeTable,in_tmpNodeTable,in_edgeTable,in_srcList,in_dstList,NUM);
+    cudaDeviceSynchronize();
+
+    int64_t nodeNUM = nodeTable->shape[0];
+    steps = (nodeNUM + slice - 1) / slice;
+    dim3 grid_(steps);
+    dim3 block_(blockSize);
+    ToMergeTable<blockSize, slice>
+    <<<grid_,block_>>>(in_nodeTable,in_tmpNodeTable,nodeNUM);
+    cudaDeviceSynchronize();
+  }
+
 
 }  // namespace transform
 }  // namespace dgl
