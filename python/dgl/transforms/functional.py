@@ -2444,7 +2444,7 @@ def fastFindNeighbor(nodeTable,srcList,dstList,accumulate=False):
     arr = _CAPI_fastFindNeighbor(nodeTable_dgl,srcList_dgl,dstList_dgl,accumulate)
     nodeTable = utils.toindex(arr(0),dtype='int32').tousertensor()
 
-def fastFindNeigEdge(nodeTable,edgeTable,src,dst):
+def fastFindNeigEdge(nodeTable,edgeTable,src,dst,offset=0,loopFlag=1):
     tensorList = [nodeTable,edgeTable,src,dst]
     for t in tensorList:
         if t.dtype != th.int32:
@@ -2455,7 +2455,7 @@ def fastFindNeigEdge(nodeTable,edgeTable,src,dst):
     edgeTable_dgl = F.to_dgl_nd(edgeTable)
     srcList_dgl = F.to_dgl_nd(src)
     dstList_dgl = F.to_dgl_nd(dst)
-    arr = _CAPI_fastFindNeigEdge(nodeTable_dgl,edgeTable_dgl,srcList_dgl,dstList_dgl)
+    arr = _CAPI_fastFindNeigEdge(nodeTable_dgl,edgeTable_dgl,srcList_dgl,dstList_dgl,offset,loopFlag)
     nodeTable = utils.toindex(arr(0),dtype='int32').tousertensor()
     edgeTable = utils.toindex(arr(1),dtype='int32').tousertensor()
 

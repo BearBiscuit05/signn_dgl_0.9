@@ -3,17 +3,17 @@ import dgl
 
 
 
-
+### src: int32 cuda 
+### dst: int32 cuda
+### uni: int32 cuda
 # print("===> Testing remapping func")
-src = torch.Tensor([0,1,2,3,0,1,2,3,2]).to(torch.int32).cuda()
-dst = torch.Tensor([3,4,5,6,8,6,2,3,6]).to(torch.int32).cuda()
+src = torch.Tensor([11,12,13,17,14,15,16,17,17]).to(torch.int32).cuda()
+dst = torch.Tensor([10,10,10,10,11,11,12,12,13]).to(torch.int32).cuda()
 uni = torch.ones(20).to(torch.int32).cuda()
 print("raw src:",src)
 print("raw dst:",dst)
 print("raw uni:",uni)
-### src: int32 cuda 
-### dst: int32 cuda
-### uni: int32 cuda
+
 sg1,sg2,sg3 = dgl.remappingNode(src,dst,uni)
 print("mapped src:",sg1)
 print("mapped dst:",sg2)
@@ -59,11 +59,25 @@ print("mapped uni:",sg3)
 # nodeTable = torch.Tensor([0,0,1,0,0,0,0,0,0,0]).to(torch.int32).cuda()
 # src = torch.Tensor([0,2,4,5,2,4,5,2]).to(torch.int32).cuda()
 # dst = torch.Tensor([1,3,7,6,4,2,3,1]).to(torch.int32).cuda()
+# src_batches = torch.chunk(src, 3, dim=0)
+# dst_batches = torch.chunk(dst, 3, dim=0)
+# batch = [src_batches, dst_batches]
+# offset = 0
 # edgeTable = torch.zeros(len(dst),dtype=torch.int32).cuda()
 # print("===> BFS edge func test")
 # print(edgeTable)
-# dgl.fastFindNeigEdge(nodeTable,edgeTable,src,dst)
-# print(edgeTable)
+
+# for src_batch,dst_batch in zip(*batch):
+#     print("src_batch:",src_batch)
+#     print("dst_batch:",dst_batch)
+#     dgl.fastFindNeigEdge(nodeTable,edgeTable,src_batch,dst_batch,offset)
+#     print("nodeTable:",nodeTable)
+#     print("edgeTable:",edgeTable)
+#     offset += len(src_batch)
+#     print("offset:",offset)
+#     print('-'*10)
+# print(f"nodeTable :{nodeTable}")
+# print(f"edgeTable :{edgeTable}")
 
 # =========================BFSNodeMap===========================
 # nodeTable = torch.Tensor([0,5,4,7,2,3,1,8]).to(torch.int32).cuda()

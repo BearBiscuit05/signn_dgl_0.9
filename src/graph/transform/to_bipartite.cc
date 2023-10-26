@@ -176,7 +176,7 @@ c_loadGraphHalo(IdArray &indptr,IdArray &indices,IdArray &edges,IdArray &bound,i
 void
 c_FindNeighborByBfs(IdArray &nodeTable,IdArray &tmpTable,IdArray &srcList,IdArray &dstList,bool acc);
 void
-c_FindNeigEdgeByBfs(IdArray &nodeTable,IdArray &tmpNodeTable,IdArray &edgeTable,IdArray &srcList,IdArray &dstList);
+c_FindNeigEdgeByBfs(IdArray &nodeTable,IdArray &tmpNodeTable,IdArray &edgeTable,IdArray &srcList,IdArray &dstList,int64_t offset,int32_t loopFlag);
 void
 c_maplocalIds(IdArray &nodeTable,IdArray &Gids,IdArray &Lids);
 
@@ -238,9 +238,11 @@ FindNeigEdge<kDLGPU, int32_t>(
   IdArray &nodeTable,
   IdArray &edgeTable,
   IdArray &srcList,
-  IdArray &dstList) {
+  IdArray &dstList,
+  int64_t offset,
+  int32_t loopFlag) {
     IdArray tmpNodeTable = Full(0,nodeTable->shape[0],srcList->ctx);
-    c_FindNeigEdgeByBfs(nodeTable,tmpNodeTable,edgeTable,srcList,dstList);
+    c_FindNeigEdgeByBfs(nodeTable,tmpNodeTable,edgeTable,srcList,dstList,offset,loopFlag);
   }
 
 template<>
@@ -329,7 +331,9 @@ DGL_REGISTER_GLOBAL("transform._CAPI_fastFindNeigEdge")
     IdArray edgeTable = args[1];
     IdArray srcList =args[2];
     IdArray dstList = args[3];
-    FindNeigEdge<kDLGPU, int32_t>(nodeTable,edgeTable,srcList,dstList); 
+    int64_t offset = args[4];
+    int32_t loopFlag = args[5];
+    FindNeigEdge<kDLGPU, int32_t>(nodeTable,edgeTable,srcList,dstList,offset,loopFlag); 
     *rv = ConvertNDArrayVectorToPackedFunc({nodeTable,edgeTable});
   });
 

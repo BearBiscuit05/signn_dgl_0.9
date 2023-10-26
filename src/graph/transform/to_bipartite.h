@@ -67,7 +67,7 @@ IdArray &nodeTable, IdArray &srcList, IdArray &dstList,bool acc);
 template<DLDeviceType XPU, typename IdType>
 void
 FindNeigEdge(
-IdArray &nodeTable,IdArray &edgeTable,IdArray &srcList,IdArray &dstList);
+IdArray &nodeTable,IdArray &edgeTable,IdArray &srcList,IdArray &dstList,int64_t offset,int32_t loopFlag);
 
 template<DLDeviceType XPU, typename IdType>
 void

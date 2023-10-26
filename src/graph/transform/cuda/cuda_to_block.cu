@@ -303,7 +303,9 @@ __global__ void ToUseBfsWithEdgeKernel(
   int* edgeTable,
   int* srcList,
   int* dstList,
-  int64_t edgeNUM) {
+  int64_t edgeNUM,
+  int64_t offset,
+  int32_t loopFlag) {
     const size_t block_start = TILE_SIZE * blockIdx.x;
     const size_t block_end = TILE_SIZE * (blockIdx.x + 1);
     for (size_t index = threadIdx.x + block_start; index < block_end;
@@ -311,12 +313,12 @@ __global__ void ToUseBfsWithEdgeKernel(
       if (index < edgeNUM) {
         int srcID = srcList[index];
         int dstID = dstList[index];
-        if(nodeTable[srcID] == 1 && nodeTable[dstID] == 0) {
+        if(nodeTable[srcID] > 0 && nodeTable[dstID] == 0) {
           // src --> dst
           atomicExch(&tmpTable[dstID], 1);
-          edgeTable[index] = 1;
-        } else if(nodeTable[srcID] == 1 && nodeTable[dstID] == 1) {
-          edgeTable[index] = 1;
+          edgeTable[offset + index] = loopFlag;
+        } else if((nodeTable[srcID] > 0 && nodeTable[dstID] > 0) && (edgeTable[offset + index] == 0)) {
+          edgeTable[offset + index] = loopFlag;
         }
       }
     }
@@ -779,7 +781,9 @@ c_FindNeigEdgeByBfs(
   IdArray &tmpNodeTable,
   IdArray &edgeTable,
   IdArray &srcList,
-  IdArray &dstList) {
+  IdArray &dstList,
+  int64_t offset,
+  int32_t loopFlag) {
     int64_t NUM = srcList->shape[0];
     const int slice = 1024;
     const int blockSize = 256;
@@ -795,7 +799,7 @@ c_FindNeigEdgeByBfs(
 
     
     ToUseBfsWithEdgeKernel<blockSize, slice>
-    <<<grid,block>>>(in_nodeTable,in_tmpNodeTable,in_edgeTable,in_srcList,in_dstList,NUM);
+    <<<grid,block>>>(in_nodeTable,in_tmpNodeTable,in_edgeTable,in_srcList,in_dstList,NUM,offset,loopFlag);
     cudaDeviceSynchronize();
 
     int64_t nodeNUM = nodeTable->shape[0];
