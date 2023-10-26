@@ -69,6 +69,11 @@ void
 FindNeigEdge(
 IdArray &nodeTable,IdArray &edgeTable,IdArray &srcList,IdArray &dstList);
 
+template<DLDeviceType XPU, typename IdType>
+void
+maplocalIds(
+IdArray &nodeTable,IdArray &Gids,IdArray &Lids);
+
 }  // namespace transform
 }  // namespace dgl
 

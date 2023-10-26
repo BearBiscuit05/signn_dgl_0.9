@@ -88,7 +88,8 @@ __all__ = [
     'remappingNode',
     'loadGraphHalo',
     'fastFindNeighbor',
-    'fastFindNeigEdge'
+    'fastFindNeigEdge',
+    'mapLocalId'
     ]
 
 
@@ -2458,7 +2459,19 @@ def fastFindNeigEdge(nodeTable,edgeTable,src,dst):
     nodeTable = utils.toindex(arr(0),dtype='int32').tousertensor()
     edgeTable = utils.toindex(arr(1),dtype='int32').tousertensor()
 
-
+def mapLocalId(nodeTable,Gids,Lids):
+    tensorList = [nodeTable,Gids,Lids]
+    for t in tensorList:
+        if t.dtype != th.int32:
+            t = t.to(th.int32)
+        if not t.is_cuda:
+            t = t.to('cuda')
+    
+    nodeTable_dgl = F.to_dgl_nd(nodeTable)
+    Gids_dgl = F.to_dgl_nd(Gids)
+    Lids_dgl = F.to_dgl_nd(Lids)
+    arr = _CAPI_MaplocalId(nodeTable_dgl,Gids_dgl,Lids_dgl)
+    Lids = utils.toindex(arr(0),dtype='int32').tousertensor()
 
 
 def _coalesce_edge_frame(g, edge_maps, counts, aggregator):

@@ -315,6 +315,33 @@ __global__ void ToUseBfsWithEdgeKernel(
           // src --> dst
           atomicExch(&tmpTable[dstID], 1);
           edgeTable[index] = 1;
+        } else if(nodeTable[srcID] == 1 && nodeTable[dstID] == 1) {
+          edgeTable[index] = 1;
+        }
+      }
+    }
+}
+
+
+template <int BLOCK_SIZE, int TILE_SIZE>
+__global__ void ToMapLocalIdKernel(
+  int* nodeTable,
+  int* Gids,
+  int* Lids,
+  int64_t TableNUM,
+  int64_t idsNUM
+) {
+  const size_t block_start = TILE_SIZE * blockIdx.x;
+    const size_t block_end = TILE_SIZE * (blockIdx.x + 1);
+    for (size_t index = threadIdx.x + block_start; index < block_end;
+        index += BLOCK_SIZE) {
+      if (index < idsNUM) {
+        int Gid = Gids[index];
+        for (int64_t i = 0 ; i < TableNUM ; i++) {
+          if(Gid == nodeTable[i]) {
+            Lids[index] = i;
+            break;
+          }
         }
       }
     }
@@ -780,6 +807,36 @@ c_FindNeigEdgeByBfs(
     cudaDeviceSynchronize();
   }
 
+void
+c_maplocalIds(
+  IdArray &nodeTable,
+  IdArray &Gids,
+  IdArray &Lids) {
+    int64_t idsNUM = Gids->shape[0];
+    int64_t TableNUM = nodeTable->shape[0];
+    const int slice = 1024;
+    const int blockSize = 256;
+    int steps = (idsNUM + slice - 1) / slice;
+    dim3 grid(steps);
+    dim3 block(blockSize);
+    
+    int32_t* in_nodeTable = static_cast<int32_t*>(nodeTable->data);
+    int32_t* in_gids = static_cast<int32_t*>(Gids->data);
+    int32_t* in_lids = static_cast<int32_t*>(Lids->data);
+
+    
+    ToMapLocalIdKernel<blockSize, slice>
+    <<<grid,block>>>(in_nodeTable,in_gids,in_lids,TableNUM,idsNUM);
+    cudaDeviceSynchronize();
+
+    // int64_t nodeNUM = nodeTable->shape[0];
+    // steps = (nodeNUM + slice - 1) / slice;
+    // dim3 grid_(steps);
+    // dim3 block_(blockSize);
+    // ToMergeTable<blockSize, slice>
+    // <<<grid_,block_>>>(in_nodeTable,in_tmpNodeTable,nodeNUM,false);
+    // cudaDeviceSynchronize();
+  }
 
 }  // namespace transform
 }  // namespace dgl

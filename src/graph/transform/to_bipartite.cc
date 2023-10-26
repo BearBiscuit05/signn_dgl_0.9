@@ -177,6 +177,8 @@ void
 c_FindNeighborByBfs(IdArray &nodeTable,IdArray &tmpTable,IdArray &srcList,IdArray &dstList,bool acc);
 void
 c_FindNeigEdgeByBfs(IdArray &nodeTable,IdArray &tmpNodeTable,IdArray &edgeTable,IdArray &srcList,IdArray &dstList);
+void
+c_maplocalIds(IdArray &nodeTable,IdArray &Gids,IdArray &Lids);
 
 template<>
 std::tuple<HeteroGraphPtr, std::vector<IdArray>>
@@ -239,6 +241,15 @@ FindNeigEdge<kDLGPU, int32_t>(
   IdArray &dstList) {
     IdArray tmpNodeTable = Full(0,nodeTable->shape[0],srcList->ctx);
     c_FindNeigEdgeByBfs(nodeTable,tmpNodeTable,edgeTable,srcList,dstList);
+  }
+
+template<>
+void
+maplocalIds<kDLGPU, int32_t>(
+  IdArray &nodeTable,
+  IdArray &Gids,
+  IdArray &Lids) {
+    c_maplocalIds(nodeTable,Gids,Lids);
   }
 
 #endif  // DGL_USE_CUDA
@@ -321,6 +332,16 @@ DGL_REGISTER_GLOBAL("transform._CAPI_fastFindNeigEdge")
     FindNeigEdge<kDLGPU, int32_t>(nodeTable,edgeTable,srcList,dstList); 
     *rv = ConvertNDArrayVectorToPackedFunc({nodeTable,edgeTable});
   });
+
+DGL_REGISTER_GLOBAL("transform._CAPI_MaplocalId")
+.set_body([] (DGLArgs args, DGLRetValue *rv) {
+    IdArray nodeTable = args[0];
+    IdArray Gids =args[1];
+    IdArray Lids = args[2];
+    maplocalIds<kDLGPU, int32_t>(nodeTable,Gids,Lids); 
+    *rv = ConvertNDArrayVectorToPackedFunc({Lids});
+  });
+
 
 
 
