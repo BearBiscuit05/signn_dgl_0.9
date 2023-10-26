@@ -55,6 +55,11 @@ Trans2ReMap(
 IdArray &lhs_nodes,IdArray &rhs_nodes,IdArray &uni_nodes,bool include_rhs_in_lhs);
 
 template<DLDeviceType XPU, typename IdType>
+std::tuple<IdArray, IdArray, IdArray>
+mapByNodeTable(
+IdArray &lhsNode,IdArray &rhsNode,IdArray &uniTable,IdArray &srcList,IdArray &dstList,bool include_rhs_in_lhs); 
+
+template<DLDeviceType XPU, typename IdType>
 void
 loadHalo2Graph(
 IdArray &indptr,IdArray &indices,IdArray &edges,IdArray &bound,int gap);

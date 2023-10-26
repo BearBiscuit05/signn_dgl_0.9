@@ -668,6 +668,101 @@ ToBlockGPUWithoutGraph(
     return std::make_tuple(new_lhs, new_rhs, uni_nodes);
 }
 
+template<typename IdType>
+std::tuple<IdArray, IdArray,IdArray>
+c_mapByNodeToEdge(
+  IdArray &lhs_nodes,
+  IdArray &rhs_nodes,
+  IdArray &uni_nodes,
+  IdArray &srcList,
+  IdArray &dstList,
+  bool include_rhs_in_lhs) {
+
+    cudaStream_t stream = runtime::getCurrentCUDAStream();
+    auto ctx = lhs_nodes->ctx;
+    auto device = runtime::DeviceAPI::Get(ctx);
+    CHECK_EQ(ctx.device_type, kDLGPU);
+
+    const int64_t num_etypes = 1;
+    const int64_t num_ntypes = 1;
+
+    std::vector<int64_t> maxNodesPerType(2, 0);
+    
+    // dst add --> src ,dst
+    for (int64_t ntype = 0; ntype < num_ntypes; ++ntype) {
+      maxNodesPerType[ntype+num_ntypes] += rhs_nodes->shape[0];
+      if (include_rhs_in_lhs) {
+        maxNodesPerType[ntype] += rhs_nodes->shape[0];
+      }
+    }
+
+    // src add
+    for (int64_t etype = 0; etype < num_etypes; ++etype) {
+      maxNodesPerType[etype] += lhs_nodes->shape[0];
+    }
+
+    // src list
+    IdArray src_nodes =  NewIdArray(maxNodesPerType[0], ctx, sizeof(IdType)*8);
+    int64_t src_node_offsets = 0;
+    // copy dst --> src
+    if (include_rhs_in_lhs) {
+        device->CopyDataFromTo(rhs_nodes.Ptr<IdType>(), 0,
+            src_nodes.Ptr<IdType>(), src_node_offsets,
+            sizeof(IdType)*rhs_nodes->shape[0],
+            rhs_nodes->ctx, src_nodes->ctx,
+            rhs_nodes->dtype);
+        src_node_offsets += sizeof(IdType)*rhs_nodes->shape[0];
+    }
+    // copy src --> src
+    device->CopyDataFromTo(
+      lhs_nodes.Ptr<IdType>(), 0,
+      src_nodes.Ptr<IdType>(),
+      src_node_offsets,
+      sizeof(IdType)*lhs_nodes->shape[0],
+      rhs_nodes->ctx,
+      src_nodes->ctx,
+      rhs_nodes->dtype);
+    src_node_offsets += sizeof(IdType)*lhs_nodes->shape[0];
+
+    DeviceNodeMapMaker<IdType> maker(maxNodesPerType);
+    DeviceNodeMap<IdType> node_maps(maxNodesPerType, num_ntypes, ctx, stream);
+    
+    std::vector<int64_t> num_nodes_per_type(num_ntypes*2);
+    for (int64_t ntype = 0; ntype < num_ntypes; ++ntype) {
+      num_nodes_per_type[num_ntypes+ntype] = rhs_nodes->shape[0];
+    }
+    
+    int64_t * count_lhs_device = static_cast<int64_t*>(
+        device->AllocWorkspace(ctx, sizeof(int64_t)*num_ntypes*2));
+    
+    maker.Make( 
+        src_nodes,
+        rhs_nodes,
+        &node_maps,
+        count_lhs_device,
+        uni_nodes,
+        stream);
+    
+    device->CopyDataFromTo(
+        count_lhs_device, 0,
+        num_nodes_per_type.data(), 0,
+        sizeof(*num_nodes_per_type.data())*num_ntypes,
+        ctx,
+        DGLContext{kDLCPU, 0},
+        DGLType{kDLInt, 64, 1});
+    device->StreamSync(ctx, stream);
+
+    // wait for the node counts to finish transferring
+    device->FreeWorkspace(ctx, count_lhs_device);
+    
+    uni_nodes->shape[0] = num_nodes_per_type[0];
+
+    IdArray new_lhs;
+    IdArray new_rhs;
+    std::tie(new_lhs, new_rhs) = MapEdgesWithoutGraph(srcList, dstList, node_maps, stream);
+    return std::make_tuple(new_lhs, new_rhs, uni_nodes);
+  }
+
 void 
 ToLoadGraphHalo(
   IdArray &indptr,
@@ -728,9 +823,19 @@ ReMapIds(
     IdArray &rhs_nodes,
     IdArray &uni_nodes,
     bool include_rhs_in_lhs) {
-  //printf("get in cuda kernel cu \n");
   return ToBlockGPUWithoutGraph<int32_t>(lhs_nodes,rhs_nodes,uni_nodes,include_rhs_in_lhs);
 }
+
+std::tuple<IdArray,IdArray,IdArray>
+mapByNodeToEdge(
+  IdArray &lhsNode,
+  IdArray &rhsNode,
+  IdArray &uniTable,
+  IdArray &srcList,
+  IdArray &dstList,
+  bool include_rhs_in_lhs) {
+    return c_mapByNodeToEdge<int32_t>(lhsNode,rhsNode,uniTable,srcList,dstList,include_rhs_in_lhs);
+  }
 
 void
 c_loadGraphHalo(

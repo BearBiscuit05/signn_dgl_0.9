@@ -171,6 +171,8 @@ std::tuple<HeteroGraphPtr, std::vector<IdArray>>
 ToBlockGPU64(HeteroGraphPtr, const std::vector<IdArray>&, bool, std::vector<IdArray>* const);
 std::tuple<IdArray,IdArray,IdArray>
 ReMapIds(IdArray &lhs_nodes,IdArray &rhs_nodes,IdArray &uni_nodes,bool include_rhs_in_lhs);
+std::tuple<IdArray,IdArray,IdArray>
+mapByNodeToEdge(IdArray &lhsNode,IdArray &rhsNode,IdArray &uniTable,IdArray &srcList,IdArray &dstList,bool include_rhs_in_lhs);
 void
 c_loadGraphHalo(IdArray &indptr,IdArray &indices,IdArray &edges,IdArray &bound,int gap);
 void
@@ -207,6 +209,19 @@ Trans2ReMap<kDLGPU, int32_t>(
                          bool include_rhs_in_lhs
                          ) {
   return ReMapIds(lhs_nodes,rhs_nodes,uni_nodes,include_rhs_in_lhs);
+}
+
+template<>
+std::tuple<IdArray, IdArray, IdArray>
+mapByNodeTable<kDLGPU, int32_t>(
+                         IdArray &lhsNode,
+                         IdArray &rhsNode,
+                         IdArray &uniTable,
+                         IdArray &srcList,
+                         IdArray &dstList,
+                         bool include_rhs_in_lhs
+                         ) {
+  return mapByNodeToEdge(lhsNode,rhsNode,uniTable,srcList,dstList,include_rhs_in_lhs);
 }
 
 template<>
@@ -346,7 +361,21 @@ DGL_REGISTER_GLOBAL("transform._CAPI_MaplocalId")
     *rv = ConvertNDArrayVectorToPackedFunc({Lids});
   });
 
-
+DGL_REGISTER_GLOBAL("transform._CAPI_MapByNodeSet")
+.set_body([] (DGLArgs args, DGLRetValue *rv) {
+    IdArray lhsNodes = args[0];
+    IdArray rhsNodes = args[1];
+    IdArray uniTabel =args[2];
+    IdArray srcList =args[3];
+    IdArray dstList = args[4];
+    IdArray new_src;
+    IdArray new_dst;
+    IdArray unqiue_nodes;
+    bool include_rhs_in_lhs = true;
+    std::tie(new_src, new_dst , unqiue_nodes) = 
+      mapByNodeTable<kDLGPU, int32_t>(lhsNodes,rhsNodes,uniTabel,srcList,dstList,include_rhs_in_lhs); 
+    *rv = ConvertNDArrayVectorToPackedFunc({new_src, new_dst , unqiue_nodes});
+  });
 
 
 };  // namespace transform

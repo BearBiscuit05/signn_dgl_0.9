@@ -89,7 +89,8 @@ __all__ = [
     'loadGraphHalo',
     'fastFindNeighbor',
     'fastFindNeigEdge',
-    'mapLocalId'
+    'mapLocalId',
+    'mapByNodeSet'
     ]
 
 
@@ -2473,6 +2474,24 @@ def mapLocalId(nodeTable,Gids,Lids):
     arr = _CAPI_MaplocalId(nodeTable_dgl,Gids_dgl,Lids_dgl)
     Lids = utils.toindex(arr(0),dtype='int32').tousertensor()
 
+def mapByNodeSet(nodeTable,uniTabel,srcList,dstList):
+    tensorList = [nodeTable,srcList,dstList]
+    for t in tensorList:
+        if t.dtype != th.int32:
+            t = t.to(th.int32)
+        if not t.is_cuda:
+            t = t.to('cuda')
+    
+    lhsNode_dgl = F.to_dgl_nd(nodeTable)
+    rhsNode_dgl = F.to_dgl_nd(copy.deepcopy(nodeTable))
+    uniTabel_dgl = F.to_dgl_nd(uniTabel)
+    srcList_dgl = F.to_dgl_nd(srcList)
+    dstList_dgl = F.to_dgl_nd(dstList)
+    arr = _CAPI_MapByNodeSet(lhsNode_dgl,rhsNode_dgl,uniTabel_dgl,srcList_dgl,dstList_dgl)
+    srcList = utils.toindex(arr(0),dtype='int32').tousertensor()
+    dstList = utils.toindex(arr(1),dtype='int32').tousertensor()
+    uni = utils.toindex(arr(2),dtype='int32').tousertensor()
+    return srcList,dstList,uni
 
 def _coalesce_edge_frame(g, edge_maps, counts, aggregator):
     r"""Coalesce edge features of duplicate edges via given aggregator in g.
