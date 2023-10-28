@@ -68,7 +68,7 @@ __global__ void _CSRRowWiseSampleDegreeWithEdgeKernel(
   if (tIdx < num_rows) {
     const int in_row = in_rows[tIdx];
     const int out_row = tIdx;
-    out_deg[out_row] = min(static_cast<IdType>(num_picks), in_ptr[in_row*2+1]-in_ptr[in_row*2]);
+    out_deg[out_row] = min(static_cast<IdType>(num_picks), in_ptr[in_row+1]-in_ptr[in_row]);
 
     if (out_row == num_rows-1) {
       // make the prefixsum work
@@ -222,8 +222,8 @@ __global__ void _CSRRowWiseSampleWithEdgeKernel(
        index += BLOCK_CTAS) {
       if (index < num_rows) {
         const int64_t row = in_rows[index];
-        const int64_t in_row_start = in_ptr[row*2];
-        const int64_t deg = in_ptr[row*2+1] - in_row_start;
+        const int64_t in_row_start = in_ptr[row];
+        const int64_t deg = in_ptr[row+1] - in_row_start;
         const int64_t out_row_start = out_ptr[index];
         if (deg <= num_picks) {
             size_t j = 0;

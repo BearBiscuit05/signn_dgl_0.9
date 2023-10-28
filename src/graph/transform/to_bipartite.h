@@ -79,6 +79,11 @@ void
 maplocalIds(
 IdArray &nodeTable,IdArray &Gids,IdArray &Lids);
 
+template<DLDeviceType XPU, typename IdType>
+void
+findSameNode(
+IdArray &tensor1,IdArray &tensor2,IdArray &indexTable1,IdArray &indexTable2);
+
 }  // namespace transform
 }  // namespace dgl
 

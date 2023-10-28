@@ -90,7 +90,8 @@ __all__ = [
     'fastFindNeighbor',
     'fastFindNeigEdge',
     'mapLocalId',
-    'mapByNodeSet'
+    'mapByNodeSet',
+    'findSameNode'
     ]
 
 
@@ -2492,6 +2493,25 @@ def mapByNodeSet(nodeTable,uniTabel,srcList,dstList):
     dstList = utils.toindex(arr(1),dtype='int32').tousertensor()
     uni = utils.toindex(arr(2),dtype='int32').tousertensor()
     return srcList,dstList,uni
+
+def findSameNode(tensor1,tensor2,indexTable1,indexTable2):
+    tensorList = [tensor1,tensor2,indexTable1,indexTable2]
+    for t in tensorList:
+        if t.dtype != th.int32:
+            t = t.to(th.int32)
+        if not t.is_cuda:
+            t = t.to('cuda')
+    tensor1_dgl = F.to_dgl_nd(tensor1)
+    tensor2_dgl = F.to_dgl_nd(tensor2)
+    indexTable1_dgl = F.to_dgl_nd(indexTable1)
+    indexTable2_dgl = F.to_dgl_nd(indexTable2)
+    arr = _CAPI_FindSameNode(tensor1_dgl,tensor2_dgl,indexTable1_dgl,indexTable2_dgl)
+    indexTable1 = utils.toindex(arr(0),dtype='int32').tousertensor()
+    indexTable2 = utils.toindex(arr(1),dtype='int32').tousertensor()
+    indexTable1 = th.nonzero(indexTable1).reshape(-1)
+    indexTable2 = th.nonzero(indexTable2).reshape(-1)
+    return indexTable1,indexTable2
+
 
 def _coalesce_edge_frame(g, edge_maps, counts, aggregator):
     r"""Coalesce edge features of duplicate edges via given aggregator in g.

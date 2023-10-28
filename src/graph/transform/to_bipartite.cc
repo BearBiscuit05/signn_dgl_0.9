@@ -181,6 +181,8 @@ void
 c_FindNeigEdgeByBfs(IdArray &nodeTable,IdArray &tmpNodeTable,IdArray &edgeTable,IdArray &srcList,IdArray &dstList,int64_t offset,int32_t loopFlag);
 void
 c_maplocalIds(IdArray &nodeTable,IdArray &Gids,IdArray &Lids);
+void
+c_findSameNode(IdArray &tensor1,IdArray &tensor2,IdArray &indexTable1,IdArray &indexTable2);
 
 template<>
 std::tuple<HeteroGraphPtr, std::vector<IdArray>>
@@ -269,6 +271,15 @@ maplocalIds<kDLGPU, int32_t>(
     c_maplocalIds(nodeTable,Gids,Lids);
   }
 
+template<>
+void
+findSameNode<kDLGPU, int32_t>(
+  IdArray &tensor1,
+  IdArray &tensor2,
+  IdArray &indexTable1,
+  IdArray &indexTable2) {
+    c_findSameNode(tensor1,tensor2,indexTable1,indexTable2);
+  }
 #endif  // DGL_USE_CUDA
 
 DGL_REGISTER_GLOBAL("transform._CAPI_DGLToBlock")
@@ -378,6 +389,15 @@ DGL_REGISTER_GLOBAL("transform._CAPI_MapByNodeSet")
   });
 
 
+DGL_REGISTER_GLOBAL("transform._CAPI_FindSameNode")
+.set_body([] (DGLArgs args, DGLRetValue *rv) {
+    IdArray tensor1 = args[0];
+    IdArray tensor2 = args[1];
+    IdArray indexTable1 =args[2];
+    IdArray indexTable2 =args[3];
+    findSameNode<kDLGPU, int32_t>(tensor1,tensor2,indexTable1,indexTable2);
+    *rv = ConvertNDArrayVectorToPackedFunc({indexTable1, indexTable2});
+  });
 };  // namespace transform
 
 };  // namespace dgl
