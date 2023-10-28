@@ -333,7 +333,7 @@ __global__ void ToMapLocalIdKernel(
   int64_t TableNUM,
   int64_t idsNUM
 ) {
-  const size_t block_start = TILE_SIZE * blockIdx.x;
+    const size_t block_start = TILE_SIZE * blockIdx.x;
     const size_t block_end = TILE_SIZE * (blockIdx.x + 1);
     for (size_t index = threadIdx.x + block_start; index < block_end;
         index += BLOCK_SIZE) {
@@ -347,6 +347,75 @@ __global__ void ToMapLocalIdKernel(
         }
       }
     }
+}
+
+
+template<int BLOCK_SIZE, int TILE_SIZE>
+__device__ void findIndex(
+    int* tensor,
+    int* table,
+    int* indexTable,
+    int64_t tensorLen,
+    int64_t tableLen
+    ) {
+  assert(BLOCK_SIZE == blockDim.x);
+
+  const size_t block_start = TILE_SIZE * blockIdx.x;
+  const size_t block_end = TILE_SIZE * (blockIdx.x + 1);
+  for (size_t index = threadIdx.x + block_start; index < block_end;
+      index += BLOCK_SIZE) {
+    
+    if (index < tensorLen) {
+      int id = tensor[index];
+      int left = 0;
+      int right=tableLen-1;
+      while(left<=right)
+      {
+          int mid =(left+right)/2;
+          if(id == table[mid]) {
+            indexTable[index] = 1;
+            break;
+          }
+          if(id>table[mid])
+          {
+              left = mid+1;
+          }
+          else
+          {
+              right = mid-1;
+          }
+      }
+    }
+
+  }
+}
+
+template <int BLOCK_SIZE, int TILE_SIZE>
+__global__ void ToFindSameNodeKernel(
+  int* in_t1,
+  int* in_t2,
+  int* in_table1,
+  int* in_table2,
+  int64_t t1NUM,
+  int64_t t2NUM
+) {
+  assert(BLOCK_SIZE == blockDim.x);
+  assert(2 == gridDim.y);
+  if (blockIdx.y == 0) {
+    findIndex<BLOCK_SIZE, TILE_SIZE>(
+        in_t1,  // find
+        in_t2,  // table
+        in_table1,
+        t1NUM,
+        t2NUM);
+  } else {
+    findIndex<BLOCK_SIZE, TILE_SIZE>(
+        in_t2,  // find
+        in_t1,  // table
+        in_table2,
+        t2NUM,
+        t1NUM);
+  }
 }
 
 
@@ -937,15 +1006,34 @@ c_maplocalIds(
     ToMapLocalIdKernel<blockSize, slice>
     <<<grid,block>>>(in_nodeTable,in_gids,in_lids,TableNUM,idsNUM);
     cudaDeviceSynchronize();
-
-    // int64_t nodeNUM = nodeTable->shape[0];
-    // steps = (nodeNUM + slice - 1) / slice;
-    // dim3 grid_(steps);
-    // dim3 block_(blockSize);
-    // ToMergeTable<blockSize, slice>
-    // <<<grid_,block_>>>(in_nodeTable,in_tmpNodeTable,nodeNUM,false);
-    // cudaDeviceSynchronize();
   }
+
+void 
+c_findSameNode (
+  IdArray &tensor1,
+  IdArray &tensor2,
+  IdArray &indexTable1,
+  IdArray &indexTable2
+) {
+  int64_t t1NUM = tensor1->shape[0];
+  int64_t t2NUM = tensor2->shape[0];
+  int64_t idsNUM = t1NUM > t2NUM ? t1NUM : t2NUM;
+  const int slice = 1024;
+  const int blockSize = 256;
+  int steps = (idsNUM + slice - 1) / slice;
+  dim3 grid(steps,2);
+  dim3 block(blockSize);
+
+  int32_t* in_t1 = static_cast<int32_t*>(tensor1->data);
+  int32_t* in_t2 = static_cast<int32_t*>(tensor2->data);
+  int32_t* in_table1 = static_cast<int32_t*>(indexTable1->data);
+  int32_t* in_table2 = static_cast<int32_t*>(indexTable2->data);
+
+
+  ToFindSameNodeKernel<blockSize, slice>
+    <<<grid,block>>>(in_t1,in_t2,in_table1,in_table2,t1NUM,t2NUM);
+  cudaDeviceSynchronize();
+}
 
 }  // namespace transform
 }  // namespace dgl
