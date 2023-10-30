@@ -91,7 +91,9 @@ __all__ = [
     'fastFindNeigEdge',
     'mapLocalId',
     'mapByNodeSet',
-    'findSameNode'
+    'findSameNode',
+    'sumDegree',
+    'calculateP'
     ]
 
 
@@ -2506,11 +2508,40 @@ def findSameNode(tensor1,tensor2,indexTable1,indexTable2):
     indexTable1_dgl = F.to_dgl_nd(indexTable1)
     indexTable2_dgl = F.to_dgl_nd(indexTable2)
     arr = _CAPI_FindSameNode(tensor1_dgl,tensor2_dgl,indexTable1_dgl,indexTable2_dgl)
-    indexTable1 = utils.toindex(arr(0),dtype='int32').tousertensor()
-    indexTable2 = utils.toindex(arr(1),dtype='int32').tousertensor()
-    indexTable1 = th.nonzero(indexTable1).reshape(-1)
-    indexTable2 = th.nonzero(indexTable2).reshape(-1)
-    return indexTable1,indexTable2
+    _indexTable1 = utils.toindex(arr(0),dtype='int32').tousertensor()
+    _indexTable2 = utils.toindex(arr(1),dtype='int32').tousertensor()
+    # indexTable1 = th.nonzero(indexTable1).reshape(-1)
+    # indexTable2 = th.nonzero(indexTable2).reshape(-1)
+    return _indexTable1,_indexTable2
+
+def sumDegree(nodeTabel,srcList,dstList):
+    tensorList = [nodeTabel,srcList,dstList]
+    for t in tensorList:
+        if t.dtype != th.int32:
+            t = t.to(th.int32)
+        if not t.is_cuda:
+            t = t.to('cuda')
+    nodeTabel_dgl = F.to_dgl_nd(nodeTabel)
+    srcList_dgl = F.to_dgl_nd(srcList)
+    dstList_dgl = F.to_dgl_nd(dstList)
+    arr = _CAPI_SumDegree(nodeTabel_dgl,srcList_dgl,dstList_dgl)
+    tabel = utils.toindex(arr(0),dtype='int32').tousertensor()
+    return tabel
+
+def calculateP(DegreeTabel,PTabel,srcList,dstList,fanout):
+    tensorList = [DegreeTabel,PTabel,srcList,dstList]
+    for t in tensorList:
+        if t.dtype != th.int32:
+            t = t.to(th.int32)
+        if not t.is_cuda:
+            t = t.to('cuda')
+    DegreeTabel_dgl = F.to_dgl_nd(DegreeTabel)
+    PTabel_dgl = F.to_dgl_nd(PTabel)
+    srcList_dgl = F.to_dgl_nd(srcList)
+    dstList_dgl = F.to_dgl_nd(dstList)
+    arr = _CAPI_CalculateP(DegreeTabel_dgl,PTabel_dgl,srcList_dgl,dstList_dgl,fanout)
+    PTabel = utils.toindex(arr(0),dtype='int32').tousertensor()
+    return PTabel
 
 
 def _coalesce_edge_frame(g, edge_maps, counts, aggregator):

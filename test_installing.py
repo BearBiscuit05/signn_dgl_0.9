@@ -7,26 +7,27 @@ import dgl
 ### dst: int32 cuda
 ### uni: int32 cuda
 # print("===> Testing remapping func")
-src = torch.Tensor([11,12,13,17,14,15,16,17,17]).to(torch.int32).cuda()
-dst = torch.Tensor([10,10,10,10,11,11,12,12,13]).to(torch.int32).cuda()
-uni = torch.ones(20).to(torch.int32).cuda()
-print("raw src:",src)
-print("raw dst:",dst)
-print("raw uni:",uni)
+# src = torch.Tensor([11,12,13,17,14,15,16,17,17]).to(torch.int32).cuda()
+# dst = torch.Tensor([10,10,10,10,11,11,12,12,13]).to(torch.int32).cuda()
+# uni = torch.ones(20).to(torch.int32).cuda()
+# print("raw src:",src)
+# print("raw dst:",dst)
+# print("raw uni:",uni)
 
-sg1,sg2,sg3 = dgl.remappingNode(src,dst,uni)
-print("mapped src:",sg1)
-print("mapped dst:",sg2)
-print("mapped uni:",sg3)
+# sg1,sg2,sg3 = dgl.remappingNode(src,dst,uni)
+# print(uni)
+# print("mapped src:",sg1)
+# print("mapped dst:",sg2)
+# print("mapped uni:",sg3)
 
 # =========================sampleTest===========================
-# src = torch.Tensor([0,4,4,5,5,7,8,10]).to(torch.int32).cuda()
+# src = torch.Tensor([0,4,5,7,8,10]).to(torch.int32).cuda()
 # dst = torch.Tensor([2,10,5,6,7,8,9,10,12,14]).to(torch.int32).cuda()
-# uni = torch.Tensor([0,1]).to(torch.int32).cuda()
+# uni = torch.Tensor([0,2]).to(torch.int32).cuda()
 # seed_num = 2
 # fanout = 5
-# outSRC = torch.ones(20).to(torch.int32).cuda()
-# outDST = torch.ones(20).to(torch.int32).cuda()
+# outSRC = torch.zeros(20).to(torch.int32).cuda()
+# outDST = torch.zeros(20).to(torch.int32).cuda()
 # print(outSRC)
 # print(outDST)
 # NUM = dgl.sampling.sample_with_edge(src, dst, uni, seed_num,fanout, outSRC,outDST)

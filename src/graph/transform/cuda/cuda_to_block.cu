@@ -365,7 +365,7 @@ __device__ void findIndex(
   for (size_t index = threadIdx.x + block_start; index < block_end;
       index += BLOCK_SIZE) {
     
-    if (index < tensorLen) {
+    if (index < tensorLen) {  
       int id = tensor[index];
       int left = 0;
       int right=tableLen-1;
@@ -374,6 +374,7 @@ __device__ void findIndex(
           int mid =(left+right)/2;
           if(id == table[mid]) {
             indexTable[index] = 1;
+            // printf("number set !!! \n");
             break;
           }
           if(id>table[mid])
@@ -417,6 +418,53 @@ __global__ void ToFindSameNodeKernel(
         t1NUM);
   }
 }
+
+
+template <int BLOCK_SIZE, int TILE_SIZE>
+__global__ void SumDegreeKernel(
+  int* in_nodeTabel,
+  int* in_srcList,
+  int* in_dstList,
+  int64_t edgeNUM) {
+    const size_t block_start = TILE_SIZE * blockIdx.x;
+    const size_t block_end = TILE_SIZE * (blockIdx.x + 1);
+    for (size_t index = threadIdx.x + block_start; index < block_end;
+        index += BLOCK_SIZE) {
+      if (index < edgeNUM) {
+        int srcid = in_srcList[index];
+        int dstid = in_dstList[index];
+        atomicAdd(&in_nodeTabel[dstid], 1);
+      }
+    }
+}
+
+template <int BLOCK_SIZE, int TILE_SIZE>
+__global__ void calculatePKernel(
+  int* in_DegreeTabel,
+  int* in_PTabel,
+  int* in_srcList,
+  int* in_dstList,
+  int64_t edgeNUM,
+  int64_t fanout){
+    const size_t block_start = TILE_SIZE * blockIdx.x;
+    const size_t block_end = TILE_SIZE * (blockIdx.x + 1);
+    for (size_t index = threadIdx.x + block_start; index < block_end;
+        index += BLOCK_SIZE) {
+      if (index < edgeNUM) {
+        int srcid = in_srcList[index];
+        int dstid = in_dstList[index];
+        if (srcid == dstid)
+          continue;
+        int degree = in_DegreeTabel[dstid];
+        float srcP = in_PTabel[srcid] / 1000.0f;
+        float dstP = in_PTabel[dstid] / 1000.0f;
+        float notChoiceP = 1.0f - fmin(1.0f, fanout / (float)degree);
+        srcP = (dstP + (1.0f - dstP) * notChoiceP);
+        int r_srcP = int(srcP*1000);
+        atomicMin(&in_PTabel[srcid], r_srcP);
+      }
+    }
+  }
 
 
 // Since partial specialization is not allowed for functions, use this as an
@@ -1034,6 +1082,58 @@ c_findSameNode (
     <<<grid,block>>>(in_t1,in_t2,in_table1,in_table2,t1NUM,t2NUM);
   cudaDeviceSynchronize();
 }
+
+void
+c_sumDegree(
+  IdArray &nodeTabel,
+  IdArray &srcList,
+  IdArray &dstList){
+  int64_t edgeNUM = srcList->shape[0];
+  const int slice = 1024;
+  const int blockSize = 256;
+  int steps = (edgeNUM + slice - 1) / slice;
+  dim3 grid(steps);
+  dim3 block(blockSize);
+
+  int32_t* in_nodeTabel = static_cast<int32_t*>(nodeTabel->data);
+  int32_t* in_srcList = static_cast<int32_t*>(srcList->data);
+  int32_t* in_dstList= static_cast<int32_t*>(dstList->data);
+
+
+  SumDegreeKernel<blockSize, slice>
+    <<<grid,block>>>(in_nodeTabel,in_srcList,in_dstList,edgeNUM);
+  cudaDeviceSynchronize();
+}
+
+
+
+void
+c_calculateP(
+  IdArray &DegreeTabel,
+  IdArray &PTabel,
+  IdArray &srcList,
+  IdArray &dstList,
+  int64_t fanout){
+  
+  int64_t edgeNUM = srcList->shape[0];
+  const int slice = 1024;
+  const int blockSize = 256;
+  int steps = (edgeNUM + slice - 1) / slice;
+  dim3 grid(steps);
+  dim3 block(blockSize);
+
+  int32_t* in_DegreeTabel = static_cast<int32_t*>(DegreeTabel->data);
+  int32_t* in_PTabel = static_cast<int32_t*>(PTabel->data);
+  int32_t* in_srcList = static_cast<int32_t*>(srcList->data);
+  int32_t* in_dstList= static_cast<int32_t*>(dstList->data);
+
+
+  calculatePKernel<blockSize, slice>
+    <<<grid,block>>>(in_DegreeTabel,in_PTabel,in_srcList,in_dstList,edgeNUM,fanout);
+  cudaDeviceSynchronize();
+}
+
+
 
 }  // namespace transform
 }  // namespace dgl

@@ -183,6 +183,10 @@ void
 c_maplocalIds(IdArray &nodeTable,IdArray &Gids,IdArray &Lids);
 void
 c_findSameNode(IdArray &tensor1,IdArray &tensor2,IdArray &indexTable1,IdArray &indexTable2);
+void
+c_sumDegree(IdArray &nodeTabel,IdArray &srcList,IdArray &dstList);
+void
+c_calculateP(IdArray &DegreeTabel,IdArray &PTabel,IdArray &srcList,IdArray &dstList,int64_t fanout);
 
 template<>
 std::tuple<HeteroGraphPtr, std::vector<IdArray>>
@@ -280,6 +284,27 @@ findSameNode<kDLGPU, int32_t>(
   IdArray &indexTable2) {
     c_findSameNode(tensor1,tensor2,indexTable1,indexTable2);
   }
+
+template<>
+void
+sumDegree<kDLGPU, int32_t>(
+  IdArray &nodeTabel,
+  IdArray &srcList,
+  IdArray &dstList) {
+    c_sumDegree(nodeTabel,srcList,dstList);
+  }
+
+template<>
+void
+calculateP<kDLGPU, int32_t>(
+  IdArray &DegreeTabel,
+  IdArray &PTabel,
+  IdArray &srcList,
+  IdArray &dstList,
+  int64_t fanout) {
+    c_calculateP(DegreeTabel,PTabel,srcList,dstList,fanout);
+  }
+
 #endif  // DGL_USE_CUDA
 
 DGL_REGISTER_GLOBAL("transform._CAPI_DGLToBlock")
@@ -398,6 +423,30 @@ DGL_REGISTER_GLOBAL("transform._CAPI_FindSameNode")
     findSameNode<kDLGPU, int32_t>(tensor1,tensor2,indexTable1,indexTable2);
     *rv = ConvertNDArrayVectorToPackedFunc({indexTable1, indexTable2});
   });
+
+DGL_REGISTER_GLOBAL("transform._CAPI_SumDegree")
+.set_body([] (DGLArgs args, DGLRetValue *rv) {
+    IdArray nodeTabel = args[0];
+    IdArray srcList = args[1];
+    IdArray dstList =args[2];
+    sumDegree<kDLGPU, int32_t>(nodeTabel,srcList,dstList);
+    *rv = ConvertNDArrayVectorToPackedFunc({nodeTabel});
+  });
+
+
+DGL_REGISTER_GLOBAL("transform._CAPI_CalculateP")
+.set_body([] (DGLArgs args, DGLRetValue *rv) {
+    IdArray DegreeTabel = args[0];
+    IdArray PTabel = args[1];
+    IdArray srcList =args[2];
+    IdArray dstList = args[3];
+    int64_t fanout = args[4];
+    calculateP<kDLGPU, int32_t>(DegreeTabel,PTabel,srcList,dstList,fanout);
+    *rv = ConvertNDArrayVectorToPackedFunc({PTabel});
+  });
+
+
+
 };  // namespace transform
 
 };  // namespace dgl

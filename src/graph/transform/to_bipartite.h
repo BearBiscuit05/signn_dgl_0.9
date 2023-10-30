@@ -84,6 +84,17 @@ void
 findSameNode(
 IdArray &tensor1,IdArray &tensor2,IdArray &indexTable1,IdArray &indexTable2);
 
+template<DLDeviceType XPU, typename IdType>
+void
+sumDegree(
+IdArray &nodeTabel,IdArray &srcList,IdArray &dstList);
+
+template<DLDeviceType XPU, typename IdType>
+void
+calculateP(
+IdArray &DegreeTabel,IdArray &PTabel,IdArray &srcList,IdArray &dstList,int64_t fanout);
+
+
 }  // namespace transform
 }  // namespace dgl
 
