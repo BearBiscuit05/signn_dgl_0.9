@@ -67,7 +67,7 @@ IdArray &indptr,IdArray &indices,IdArray &edges,IdArray &bound,int gap);
 template<DLDeviceType XPU, typename IdType>
 void
 FindNeighbor(
-IdArray &nodeTable, IdArray &srcList, IdArray &dstList,bool acc);
+IdArray &nodeTable, IdArray &srcList, IdArray &dstList,int64_t flag,bool acc);
 
 template<DLDeviceType XPU, typename IdType>
 void

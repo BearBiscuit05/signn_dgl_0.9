@@ -2442,11 +2442,11 @@ def loadGraphHalo(indptr,indices,edges,bound,gap):
     indptr = utils.toindex(arr(0),dtype='int32').tousertensor()
     indices = utils.toindex(arr(1),dtype='int32').tousertensor()
 
-def fastFindNeighbor(nodeTable,srcList,dstList,accumulate=False):
+def fastFindNeighbor(nodeTable,srcList,dstList,accumulate=False,flag=1):
     nodeTable_dgl = F.to_dgl_nd(nodeTable)
     srcList_dgl = F.to_dgl_nd(srcList)
     dstList_dgl = F.to_dgl_nd(dstList)
-    arr = _CAPI_fastFindNeighbor(nodeTable_dgl,srcList_dgl,dstList_dgl,accumulate)
+    arr = _CAPI_fastFindNeighbor(nodeTable_dgl,srcList_dgl,dstList_dgl,flag,accumulate)
     nodeTable = utils.toindex(arr(0),dtype='int32').tousertensor()
 
 def fastFindNeigEdge(nodeTable,edgeTable,src,dst,offset=0,loopFlag=1):

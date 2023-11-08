@@ -75,14 +75,15 @@ dgl.sampling.sample_with_edge(inptr, indices, seed, seed_num,fanout, outSRC,outD
 
 
 """
-dgl.fastFindNeighbor(nodeTable,src,dst,acc)
+dgl.fastFindNeighbor(nodeTable,src,dst,accumulate=False,flag=1)
     用于使用cuda进行快速BFS的函数
     
     args:
         nodeTable(int32,cuda)   : 用于记录节点是否被访问的向量
         src(int32,cuda)         : 表示图的起始列
         dst(int32,cuda)         : 表示图的终点列
-        acc(bool)               : 表示是否需要对重复的访问进行累加
+        accumulate(bool)        : 表示是否需要对重复的访问进行累加
+        flag(int64)             : 表示访问的标记内容
     
     return:
         None: 仅在nodeTable中进行修改

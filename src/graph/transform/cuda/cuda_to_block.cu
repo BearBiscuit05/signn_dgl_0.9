@@ -253,6 +253,7 @@ __global__ void ToUseBfsKernel(
   int* srcList,
   int* dstList,
   int64_t edgeNUM,
+  int64_t flag,
   bool acc) {
     const size_t block_start = TILE_SIZE * blockIdx.x;
     const size_t block_end = TILE_SIZE * (blockIdx.x + 1);
@@ -266,7 +267,7 @@ __global__ void ToUseBfsKernel(
           if (acc) {
             atomicAdd(&tmpTable[dstID], 1);
           } else {
-            atomicExch(&tmpTable[dstID], 1);
+            atomicExch(&tmpTable[dstID], flag);
           }
         }
       }
@@ -1004,6 +1005,7 @@ c_FindNeighborByBfs(
   IdArray &tmpTable,
   IdArray &srcList,
   IdArray &dstList,
+  int64_t flag,
   bool acc) {
 
   int64_t NUM = srcList->shape[0];
@@ -1019,7 +1021,7 @@ c_FindNeighborByBfs(
   int32_t* in_dstList = static_cast<int32_t*>(dstList->data);
 
   ToUseBfsKernel<blockSize, slice>
-  <<<grid,block>>>(in_nodeTable,in_tmpTable,in_srcList,in_dstList,NUM,acc);
+  <<<grid,block>>>(in_nodeTable,in_tmpTable,in_srcList,in_dstList,NUM,flag,acc);
   cudaDeviceSynchronize();
 
   int64_t nodeNUM = nodeTable->shape[0];

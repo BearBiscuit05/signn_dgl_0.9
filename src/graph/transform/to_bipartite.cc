@@ -176,7 +176,7 @@ mapByNodeToEdge(IdArray &lhsNode,IdArray &rhsNode,IdArray &uniTable,IdArray &src
 void
 c_loadGraphHalo(IdArray &indptr,IdArray &indices,IdArray &edges,IdArray &bound,int gap);
 void
-c_FindNeighborByBfs(IdArray &nodeTable,IdArray &tmpTable,IdArray &srcList,IdArray &dstList,bool acc);
+c_FindNeighborByBfs(IdArray &nodeTable,IdArray &tmpTable,IdArray &srcList,IdArray &dstList,int64_t flag,bool acc);
 void
 c_FindNeigEdgeByBfs(IdArray &nodeTable,IdArray &tmpNodeTable,IdArray &edgeTable,IdArray &srcList,IdArray &dstList,int64_t offset,int32_t loopFlag);
 void
@@ -251,9 +251,10 @@ FindNeighbor<kDLGPU, int32_t>(
   IdArray &nodeTable,
   IdArray &srcList,
   IdArray &dstList,
+  int64_t flag,
   bool acc) {
   IdArray tmpTable = Full(0,nodeTable->shape[0],srcList->ctx);
-  c_FindNeighborByBfs(nodeTable,tmpTable,srcList,dstList,acc);
+  c_FindNeighborByBfs(nodeTable,tmpTable,srcList,dstList,flag,acc);
 } 
 
 template<>
@@ -389,8 +390,9 @@ DGL_REGISTER_GLOBAL("transform._CAPI_fastFindNeighbor")
     IdArray nodeTable = args[0];
     IdArray srcList =args[1];
     IdArray dstList = args[2];
-    bool acc = args[3];
-    FindNeighbor<kDLGPU, int32_t>(nodeTable,srcList,dstList,acc); 
+    int64_t flag = args[3];
+    bool acc = args[4];
+    FindNeighbor<kDLGPU, int32_t>(nodeTable,srcList,dstList,flag,acc); 
     *rv = ConvertNDArrayVectorToPackedFunc({nodeTable});
   });
 
