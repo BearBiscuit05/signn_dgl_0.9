@@ -184,9 +184,12 @@ c_maplocalIds(IdArray &nodeTable,IdArray &Gids,IdArray &Lids);
 void
 c_findSameNode(IdArray &tensor1,IdArray &tensor2,IdArray &indexTable1,IdArray &indexTable2);
 void
-c_sumDegree(IdArray &nodeTabel,IdArray &srcList,IdArray &dstList);
+c_SumDegree(IdArray &InNodeTabel,IdArray &OutNodeTabel,IdArray &srcList,IdArray &dstList);
 void
 c_calculateP(IdArray &DegreeTabel,IdArray &PTabel,IdArray &srcList,IdArray &dstList,int64_t fanout);
+void
+c_PPR(IdArray &src,IdArray &dst,IdArray &degreeTable,IdArray &nodeValue,IdArray &nodeInfo,IdArray &tmpNodeValue,IdArray &tmpNodeInfo);
+
 
 template<>
 std::tuple<HeteroGraphPtr, std::vector<IdArray>>
@@ -288,10 +291,11 @@ findSameNode<kDLGPU, int32_t>(
 template<>
 void
 sumDegree<kDLGPU, int32_t>(
-  IdArray &nodeTabel,
+  IdArray &InNodeTabel,
+  IdArray &OutNodeTabel,
   IdArray &srcList,
   IdArray &dstList) {
-    c_sumDegree(nodeTabel,srcList,dstList);
+    c_SumDegree(InNodeTabel,OutNodeTabel,srcList,dstList);
   }
 
 template<>
@@ -304,6 +308,20 @@ calculateP<kDLGPU, int32_t>(
   int64_t fanout) {
     c_calculateP(DegreeTabel,PTabel,srcList,dstList,fanout);
   }
+
+template<>
+void
+PPR<kDLGPU, int32_t>(
+  IdArray &src,
+  IdArray &dst,
+  IdArray &degreeTable,
+  IdArray &nodeValue,
+  IdArray &nodeInfo
+) {
+  IdArray tmpNodeValue = Full(0,nodeValue->shape[0],src->ctx);
+  IdArray tmpNodeInfo = Full(0,nodeInfo->shape[0],src->ctx);
+  c_PPR(src,dst,degreeTable,nodeValue,nodeInfo,tmpNodeValue,tmpNodeInfo);
+}
 
 #endif  // DGL_USE_CUDA
 
@@ -426,11 +444,12 @@ DGL_REGISTER_GLOBAL("transform._CAPI_FindSameNode")
 
 DGL_REGISTER_GLOBAL("transform._CAPI_SumDegree")
 .set_body([] (DGLArgs args, DGLRetValue *rv) {
-    IdArray nodeTabel = args[0];
-    IdArray srcList = args[1];
-    IdArray dstList =args[2];
-    sumDegree<kDLGPU, int32_t>(nodeTabel,srcList,dstList);
-    *rv = ConvertNDArrayVectorToPackedFunc({nodeTabel});
+    IdArray InNodeTabel = args[0];
+    IdArray OutNodeTabel = args[1];
+    IdArray srcList = args[2];
+    IdArray dstList =args[3];
+    sumDegree<kDLGPU, int32_t>(InNodeTabel,OutNodeTabel,srcList,dstList);
+    *rv = ConvertNDArrayVectorToPackedFunc({InNodeTabel,OutNodeTabel});
   });
 
 
@@ -443,6 +462,17 @@ DGL_REGISTER_GLOBAL("transform._CAPI_CalculateP")
     int64_t fanout = args[4];
     calculateP<kDLGPU, int32_t>(DegreeTabel,PTabel,srcList,dstList,fanout);
     *rv = ConvertNDArrayVectorToPackedFunc({PTabel});
+  });
+
+DGL_REGISTER_GLOBAL("transform._CAPI_PPR")
+.set_body([] (DGLArgs args, DGLRetValue *rv) {
+    IdArray src = args[0];
+    IdArray dst = args[1];
+    IdArray degreeTable = args[2];
+    IdArray nodeValue =args[3];
+    IdArray nodeInfo = args[4];
+    PPR<kDLGPU, int32_t>(src,dst,degreeTable,nodeValue,nodeInfo);
+    *rv = ConvertNDArrayVectorToPackedFunc({nodeValue,nodeInfo});
   });
 
 

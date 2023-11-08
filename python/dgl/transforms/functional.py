@@ -93,7 +93,8 @@ __all__ = [
     'mapByNodeSet',
     'findSameNode',
     'sumDegree',
-    'calculateP'
+    'calculateP',
+    'per_pagerank'
     ]
 
 
@@ -2499,10 +2500,8 @@ def mapByNodeSet(nodeTable,uniTabel,srcList,dstList):
 def findSameNode(tensor1,tensor2,indexTable1,indexTable2):
     tensorList = [tensor1,tensor2,indexTable1,indexTable2]
     for t in tensorList:
-        if t.dtype != th.int32:
-            t = t.to(th.int32)
-        if not t.is_cuda:
-            t = t.to('cuda')
+        assert t.dtype == th.int32, "Expected dtype to be th.int32"
+        assert t.is_cuda, "Expected the tensor to be on 'cuda'"
     tensor1_dgl = F.to_dgl_nd(tensor1)
     tensor2_dgl = F.to_dgl_nd(tensor2)
     indexTable1_dgl = F.to_dgl_nd(indexTable1)
@@ -2514,19 +2513,19 @@ def findSameNode(tensor1,tensor2,indexTable1,indexTable2):
     # indexTable2 = th.nonzero(indexTable2).reshape(-1)
     return _indexTable1,_indexTable2
 
-def sumDegree(nodeTabel,srcList,dstList):
-    tensorList = [nodeTabel,srcList,dstList]
+def sumDegree(InNodeTabel,OutNodeTable,srcList,dstList):
+    tensorList = [InNodeTabel,OutNodeTable,srcList,dstList]
     for t in tensorList:
-        if t.dtype != th.int32:
-            t = t.to(th.int32)
-        if not t.is_cuda:
-            t = t.to('cuda')
-    nodeTabel_dgl = F.to_dgl_nd(nodeTabel)
+        assert t.dtype == th.int32, "Expected dtype to be th.int32"
+        assert t.is_cuda, "Expected the tensor to be on 'cuda'"
+    InNodeTabel_dgl = F.to_dgl_nd(InNodeTabel)
+    OutNodeTable_dgl = F.to_dgl_nd(OutNodeTable)
     srcList_dgl = F.to_dgl_nd(srcList)
     dstList_dgl = F.to_dgl_nd(dstList)
-    arr = _CAPI_SumDegree(nodeTabel_dgl,srcList_dgl,dstList_dgl)
-    tabel = utils.toindex(arr(0),dtype='int32').tousertensor()
-    return tabel
+    arr = _CAPI_SumDegree(InNodeTabel_dgl,OutNodeTable_dgl,srcList_dgl,dstList_dgl)
+    InTabel = utils.toindex(arr(0),dtype='int32').tousertensor()
+    OutTabel = utils.toindex(arr(1),dtype='int32').tousertensor()
+    return InTabel,OutTabel
 
 def calculateP(DegreeTabel,PTabel,srcList,dstList,fanout):
     tensorList = [DegreeTabel,PTabel,srcList,dstList]
@@ -2543,6 +2542,19 @@ def calculateP(DegreeTabel,PTabel,srcList,dstList,fanout):
     PTabel = utils.toindex(arr(0),dtype='int32').tousertensor()
     return PTabel
 
+def per_pagerank(src,dst,degreeTable,nodeValue,nodeInfo):
+    tensorList = [src,dst,nodeValue,nodeInfo]
+    for t in tensorList:
+        assert t.dtype == th.int32, "Expected dtype to be th.int32"
+        assert t.is_cuda, "Expected the tensor to be on 'cuda'"
+    src_dgl = F.to_dgl_nd(src)
+    dst_dgl = F.to_dgl_nd(dst)
+    nodeValue_dgl = F.to_dgl_nd(nodeValue)
+    nodeInfo_dgl = F.to_dgl_nd(nodeInfo)
+    degreeTable_dgl = F.to_dgl_nd(degreeTable)
+    array = _CAPI_PPR(src_dgl,dst_dgl,degreeTable_dgl,nodeValue_dgl,nodeInfo_dgl)
+    nodeValue = utils.toindex(array(0),dtype='int32').tousertensor()
+    nodeInfo = utils.toindex(array(1),dtype='int32').tousertensor()
 
 def _coalesce_edge_frame(g, edge_maps, counts, aggregator):
     r"""Coalesce edge features of duplicate edges via given aggregator in g.

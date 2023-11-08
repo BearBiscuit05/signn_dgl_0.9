@@ -318,7 +318,7 @@ __global__ void ToUseBfsWithEdgeKernel(
           atomicExch(&tmpTable[dstID], 1);
           edgeTable[offset + index] = loopFlag;
         } else if((nodeTable[srcID] > 0 && nodeTable[dstID] > 0) && (edgeTable[offset + index] == 0)) {
-          edgeTable[offset + index] = loopFlag;
+          edgeTable[offset + index] = 1;
         }
       }
     }
@@ -423,6 +423,7 @@ __global__ void ToFindSameNodeKernel(
 template <int BLOCK_SIZE, int TILE_SIZE>
 __global__ void SumDegreeKernel(
   int* in_nodeTabel,
+  int* out_nodeTabel,
   int* in_srcList,
   int* in_dstList,
   int64_t edgeNUM) {
@@ -434,6 +435,7 @@ __global__ void SumDegreeKernel(
         int srcid = in_srcList[index];
         int dstid = in_dstList[index];
         atomicAdd(&in_nodeTabel[dstid], 1);
+        atomicAdd(&out_nodeTabel[srcid], 1);
       }
     }
 }
@@ -462,6 +464,38 @@ __global__ void calculatePKernel(
         srcP = (dstP + (1.0f - dstP) * notChoiceP);
         int r_srcP = int(srcP*1000);
         atomicMin(&in_PTabel[srcid], r_srcP);
+      }
+    }
+  }
+
+template <int BLOCK_SIZE, int TILE_SIZE>
+__global__ void PPRkernel(
+  int* src,
+  int* dst,
+  int* degreeTable,
+  int* in_nodeValue,
+  int* in_nodeInfo,
+  int* in_tmpNodeValue,
+  int* in_tmpNodeInfo,
+  int64_t edgeNUM) {
+    // src -> dst value and info
+    float d = 0.85;
+    const size_t block_start = TILE_SIZE * blockIdx.x;
+    const size_t block_end = TILE_SIZE * (blockIdx.x + 1);
+    for (size_t index = threadIdx.x + block_start; index < block_end;
+        index += BLOCK_SIZE) {
+      if (index < edgeNUM) {
+        int srcId = src[index];
+        int dstId = dst[index];
+        int degree = degreeTable[srcId];
+        float value = in_nodeValue[srcId];
+        int src_info = in_nodeInfo[srcId];
+        int dst_info = in_nodeInfo[dstId] | src_info;
+        if(value == 0.0f)
+          continue;
+        float con = value * d / (1000.0f * degree);
+        atomicAdd(&in_tmpNodeValue[dstId], int(con*1000));
+        atomicExch(&in_tmpNodeInfo[dstId],dst_info);
       }
     }
   }
@@ -1084,8 +1118,9 @@ c_findSameNode (
 }
 
 void
-c_sumDegree(
-  IdArray &nodeTabel,
+c_SumDegree(
+  IdArray &InNodeTabel,
+  IdArray &OutnodeTabel,
   IdArray &srcList,
   IdArray &dstList){
   int64_t edgeNUM = srcList->shape[0];
@@ -1095,13 +1130,14 @@ c_sumDegree(
   dim3 grid(steps);
   dim3 block(blockSize);
 
-  int32_t* in_nodeTabel = static_cast<int32_t*>(nodeTabel->data);
+  int32_t* in_nodeTabel = static_cast<int32_t*>(InNodeTabel->data);
+  int32_t* Out_nodeTabel = static_cast<int32_t*>(OutnodeTabel->data);
   int32_t* in_srcList = static_cast<int32_t*>(srcList->data);
   int32_t* in_dstList= static_cast<int32_t*>(dstList->data);
 
 
   SumDegreeKernel<blockSize, slice>
-    <<<grid,block>>>(in_nodeTabel,in_srcList,in_dstList,edgeNUM);
+    <<<grid,block>>>(in_nodeTabel,Out_nodeTabel,in_srcList,in_dstList,edgeNUM);
   cudaDeviceSynchronize();
 }
 
@@ -1133,6 +1169,49 @@ c_calculateP(
   cudaDeviceSynchronize();
 }
 
+
+void
+c_PPR(
+  IdArray &src,
+  IdArray &dst,
+  IdArray &degreeTable,
+  IdArray &nodeValue,
+  IdArray &nodeInfo,
+  IdArray &tmpNodeValue,
+  IdArray &tmpNodeInfo) {
+
+  int64_t edgeNUM = src->shape[0];
+  const int slice = 1024;
+  const int blockSize = 256;
+  int steps = (edgeNUM + slice - 1) / slice;
+  dim3 grid(steps);
+  dim3 block(blockSize);
+
+  int32_t* in_src = static_cast<int32_t*>(src->data);
+  int32_t* in_dst = static_cast<int32_t*>(dst->data);
+  int32_t* in_degreeTable = static_cast<int32_t*>(degreeTable->data);
+  int32_t* in_nodeValue = static_cast<int32_t*>(nodeValue->data);
+  int32_t* in_nodeInfo= static_cast<int32_t*>(nodeInfo->data);
+  int32_t* in_tmpNodeValue = static_cast<int32_t*>(tmpNodeValue->data);
+  int32_t* in_tmpNodeInfo= static_cast<int32_t*>(tmpNodeInfo->data);
+
+  PPRkernel<blockSize, slice>
+    <<<grid,block>>>(in_src,in_dst,in_degreeTable,in_nodeValue,in_nodeInfo,in_tmpNodeValue,in_tmpNodeInfo,edgeNUM);
+  cudaDeviceSynchronize();
+
+  int64_t nodeNUM = nodeValue->shape[0];
+  steps = (nodeNUM + slice - 1) / slice;
+  dim3 _grid(steps);
+  dim3 _block(blockSize);
+  
+  ToMergeTable<blockSize, slice>
+    <<<_grid,_block>>>(in_nodeValue,in_tmpNodeValue,nodeNUM,true);
+  cudaDeviceSynchronize();
+  ToMergeTable<blockSize, slice>
+    <<<_grid,_block>>>(in_nodeInfo,in_tmpNodeInfo,nodeNUM,false);
+  cudaDeviceSynchronize();
+
+}
 
 
 }  // namespace transform
