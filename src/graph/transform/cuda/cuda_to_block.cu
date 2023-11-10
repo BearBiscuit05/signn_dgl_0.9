@@ -494,11 +494,11 @@ __global__ void PPRkernel(
         int src_info = in_nodeInfo[srcId];
         int dst_info = in_nodeInfo[dstId] | src_info;
         edgeTable[index] = src_info;
+        atomicOr(&in_tmpNodeInfo[dstId],dst_info);
         if(value == 0.0f)
           continue;
         float con = value * d / (1000.0f * degree);
         atomicAdd(&in_tmpNodeValue[dstId], int(con*1000));
-        atomicExch(&in_tmpNodeInfo[dstId],dst_info);
       }
     }
   }

@@ -258,12 +258,12 @@ dgl.per_pagerank(src,dst,degreeTable,nodeValue,nodeInfo)
     return:
         None: 直接在nodeValue,nodeInfo中进行修改
 """
-degreeTable = torch.Tensor([1,0,3,0,2,2,0,0]).to(torch.int32).cuda()
-src = torch.Tensor([0,2,4,5,2,4,5,2]).to(torch.int32).cuda()
-dst = torch.Tensor([1,3,7,6,4,2,3,1]).to(torch.int32).cuda()
+degreeTable = torch.Tensor([1,1,1,1,1,1,1,1,1,1,1,1]).to(torch.int32).cuda()
+src = torch.Tensor([0,4,4,1,5,5,3,6,6,7,7,2]).to(torch.int32).cuda()
+dst = torch.Tensor([4,8,5,5,8,6,6,7,8,8,4,7]).to(torch.int32).cuda()
 edgeTable = torch.zeros_like(src).to(torch.int32).cuda()
 nodeValue = torch.Tensor([0,0,10000,0,0,0,0,0]).to(torch.int32).cuda()
-nodeInfo = torch.Tensor([0,0,2,0,0,0,0,0]).to(torch.int32).cuda()
+nodeInfo = torch.Tensor([1,2,4,8,0,0,0,0,0,0,0,0]).to(torch.int32).cuda()
 edgeTable,nodeValue,nodeInfo = dgl.per_pagerank(src,dst,edgeTable,degreeTable,nodeValue,nodeInfo)
 print("edgeTable:",edgeTable)
 print("nodeValue:",nodeValue)
