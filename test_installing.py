@@ -158,22 +158,28 @@ dgl.mapLocalId(mapTable,Gid,Lid)
 
 
 """
-dgl.sumDegree(nodeTable,src,dst)
+dgl.sumDegree(inNodeTable,outNodeTable,src,dst)
     用于快速计算每个节点的入度情况
+    src -> dst
 
     args:
-        nodeTable(int32,cuda)   : 记录每个点的入度情况
+        inNodeTable(int32,cuda)   : 记录每个点的入度情况
+        outNodeTable(int32,cuda)   : 记录每个点的入度情况
         src(int32,cuda)         : 表示图的起始列
         dst(int32,cuda)         : 表示图的终止列
     
     return:
+        # TODO:
         None: nodeTable中进行修改
 """
-# nodeTable = torch.Tensor([0,0,0,0,0,0,0,0,0,0]).to(torch.int32).cuda()
+
+# inNodeTable = torch.Tensor([0,0,0,0,0,0,0,0,0,0]).to(torch.int32).cuda()
+# outNodeTable = torch.Tensor([0,0,0,0,0,0,0,0,0,0]).to(torch.int32).cuda()
 # src = torch.Tensor([0,2,4,5,2,4,5,2]).to(torch.int32).cuda()
 # dst = torch.Tensor([1,3,7,6,4,2,3,1]).to(torch.int32).cuda()
-# nodeTable = dgl.sumDegree(nodeTable,src,dst)
-
+# inNodeTable,outNodeTable = dgl.sumDegree(inNodeTable,outNodeTable,src,dst)
+# print(inNodeTable)
+# print(outNodeTable)
 
 # PTable = torch.Tensor([0,0,1000,1000,1000,1000]).to(torch.int32).cuda()
 # DegreeTable = torch.Tensor([3,2,0,0,0,0]).to(torch.int32).cuda()
@@ -186,9 +192,62 @@ dgl.sumDegree(nodeTable,src,dst)
 
 
 """
-dgl.pagerank(src,dst,degreeTable,nodeValue,nodeInfo)
-    用于计算每个点的pagerank,并传递分区信息
+dgl.mapByNodeSet(nodeTable,uniTable,srcList,dstList)
+    使用nodeTable进行id重排,随后对src和dst重新赋值
 
+    args:
+        nodeTable(int32,cuda)   : 出入需要排序的nodeTable
+        uniTable(int32,cuda)    : 接收nodeTable重排后的id
+        src(int32,cuda)         : 表示图的起始列
+        dst(int32,cuda)         : 表示图的终止列
+    
+    return:
+        src(int32,cuda)         : 表示重排后图的起始列
+        dst(int32,cuda)         : 表示重排后图的终止列
+        uniTable(int32,cuda)    : 图被排序后的id映射表
+"""
+#
+#
+#
+#
+#
+#
+#
+#
+
+
+"""
+dgl.findSameNode(tensor1,tensor2,indexTable1,indexTable2)
+    在两个单调增的向量中寻找相同的值,并返回相同值的索引位置
+
+    args:
+        tensor1(int32,cuda)         : 用于比较的第一个向量
+        tensor2(int32,cuda)         : 用于比较的第二个向量
+        indexTable1(int32,cuda)     : 用于存储第一个向量的相同值索引
+        indexTable2(int32,cuda)     : 用于存储第二个向量的相同值索引
+    
+    return:
+        indexTable1(int32,cuda)         : 存储第一个向量的相同值索引
+        indexTable2(int32,cuda)         : 存储第二个向量的相同值索引
+
+
+"""
+#
+#
+#
+#
+#
+#
+#
+#
+
+
+
+"""
+dgl.per_pagerank(src,dst,degreeTable,nodeValue,nodeInfo)
+    用于计算每个点的pagerank,并传递分区信息
+    src -> dst
+    
     args:
         src(int32,cuda)         : 表示图的起始列
         dst(int32,cuda)         : 表示图的终止列
@@ -199,14 +258,16 @@ dgl.pagerank(src,dst,degreeTable,nodeValue,nodeInfo)
     return:
         None: 直接在nodeValue,nodeInfo中进行修改
 """
-# degreeTable = torch.Tensor([1,0,3,0,2,2,0,0]).to(torch.int32).cuda()
-# src = torch.Tensor([0,2,4,5,2,4,5,2]).to(torch.int32).cuda()
-# dst = torch.Tensor([1,3,7,6,4,2,3,1]).to(torch.int32).cuda()
-# nodeValue = torch.Tensor([0,0,10000,0,0,0,0,0]).to(torch.int32).cuda()
-# nodeInfo = torch.Tensor([0,0,2,0,0,0,0,0]).to(torch.int32).cuda()
-# dgl.per_pagerank(src,dst,degreeTable,nodeValue,nodeInfo)
-# print("nodeValue:",nodeValue)
-# print("nodeInfo:",nodeInfo)
+degreeTable = torch.Tensor([1,0,3,0,2,2,0,0]).to(torch.int32).cuda()
+src = torch.Tensor([0,2,4,5,2,4,5,2]).to(torch.int32).cuda()
+dst = torch.Tensor([1,3,7,6,4,2,3,1]).to(torch.int32).cuda()
+edgeTable = torch.zeros_like(src).to(torch.int32).cuda()
+nodeValue = torch.Tensor([0,0,10000,0,0,0,0,0]).to(torch.int32).cuda()
+nodeInfo = torch.Tensor([0,0,2,0,0,0,0,0]).to(torch.int32).cuda()
+edgeTable,nodeValue,nodeInfo = dgl.per_pagerank(src,dst,edgeTable,degreeTable,nodeValue,nodeInfo)
+print("edgeTable:",edgeTable)
+print("nodeValue:",nodeValue)
+print("nodeInfo:",nodeInfo)
 
 """
 分区中
@@ -215,3 +276,12 @@ dgl.pagerank(src,dst,degreeTable,nodeValue,nodeInfo)
 然后按照重要度进行重排
 对重排结果分成不同的格内部
 """
+
+# degreeTable = torch.Tensor([1,0,3,0,2,2,0,0]).to(torch.int32).cuda()
+# src = torch.Tensor([0,2,4,5,2,4,5,2]).to(torch.int32).cuda()
+# dst = torch.Tensor([1,3,7,6,4,2,3,1]).to(torch.int32).cuda()
+# nodeValue = torch.Tensor([0,0,10000,0,0,0,0,0]).to(torch.int32).cuda()
+# nodeInfo = torch.Tensor([0,0,2,0,0,0,0,0]).to(torch.int32).cuda()
+# dgl.per_pagerank(src,dst,degreeTable,nodeValue,nodeInfo)
+# print("nodeValue:",nodeValue)
+# print("nodeInfo:",nodeInfo)
