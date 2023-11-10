@@ -188,7 +188,7 @@ c_SumDegree(IdArray &InNodeTabel,IdArray &OutNodeTabel,IdArray &srcList,IdArray 
 void
 c_calculateP(IdArray &DegreeTabel,IdArray &PTabel,IdArray &srcList,IdArray &dstList,int64_t fanout);
 void
-c_PPR(IdArray &src,IdArray &dst,IdArray &degreeTable,IdArray &nodeValue,IdArray &nodeInfo,IdArray &tmpNodeValue,IdArray &tmpNodeInfo);
+c_PPR(IdArray &src,IdArray &dst,IdArray &edgeTable,IdArray &degreeTable,IdArray &nodeValue,IdArray &nodeInfo,IdArray &tmpNodeValue,IdArray &tmpNodeInfo);
 
 
 template<>
@@ -315,13 +315,14 @@ void
 PPR<kDLGPU, int32_t>(
   IdArray &src,
   IdArray &dst,
+  IdArray &edgeTable,
   IdArray &degreeTable,
   IdArray &nodeValue,
   IdArray &nodeInfo
 ) {
   IdArray tmpNodeValue = Full(0,nodeValue->shape[0],src->ctx);
   IdArray tmpNodeInfo = Full(0,nodeInfo->shape[0],src->ctx);
-  c_PPR(src,dst,degreeTable,nodeValue,nodeInfo,tmpNodeValue,tmpNodeInfo);
+  c_PPR(src,dst,edgeTable,degreeTable,nodeValue,nodeInfo,tmpNodeValue,tmpNodeInfo);
 }
 
 #endif  // DGL_USE_CUDA
@@ -470,11 +471,12 @@ DGL_REGISTER_GLOBAL("transform._CAPI_PPR")
 .set_body([] (DGLArgs args, DGLRetValue *rv) {
     IdArray src = args[0];
     IdArray dst = args[1];
-    IdArray degreeTable = args[2];
-    IdArray nodeValue =args[3];
-    IdArray nodeInfo = args[4];
-    PPR<kDLGPU, int32_t>(src,dst,degreeTable,nodeValue,nodeInfo);
-    *rv = ConvertNDArrayVectorToPackedFunc({nodeValue,nodeInfo});
+    IdArray edgeTable = args[2];
+    IdArray degreeTable = args[3];
+    IdArray nodeValue =args[4];
+    IdArray nodeInfo = args[5];
+    PPR<kDLGPU, int32_t>(src,dst,edgeTable,degreeTable,nodeValue,nodeInfo);
+    *rv = ConvertNDArrayVectorToPackedFunc({edgeTable,nodeValue,nodeInfo});
   });
 
 
