@@ -99,6 +99,11 @@ void
 PPR(
 IdArray &src,IdArray &dst,IdArray &edgeTable,IdArray &nodeTable,IdArray &nodeValue,IdArray &nodeInfo); 
 
+template<DLDeviceType XPU, typename IdType>
+void
+loss_csr(
+IdArray &raw_ptr,IdArray &new_ptr,IdArray &raw_indice,IdArray &new_indice);
+
 }  // namespace transform
 }  // namespace dgl
 

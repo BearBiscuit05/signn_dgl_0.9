@@ -189,7 +189,8 @@ void
 c_calculateP(IdArray &DegreeTabel,IdArray &PTabel,IdArray &srcList,IdArray &dstList,int64_t fanout);
 void
 c_PPR(IdArray &src,IdArray &dst,IdArray &edgeTable,IdArray &degreeTable,IdArray &nodeValue,IdArray &nodeInfo,IdArray &tmpNodeValue,IdArray &tmpNodeInfo);
-
+void
+c_loss_csr(IdArray &raw_ptr,IdArray &new_ptr,IdArray &raw_indice,IdArray &new_indice);
 
 template<>
 std::tuple<HeteroGraphPtr, std::vector<IdArray>>
@@ -324,6 +325,18 @@ PPR<kDLGPU, int32_t>(
   IdArray tmpNodeInfo = Full(0,nodeInfo->shape[0],src->ctx);
   c_PPR(src,dst,edgeTable,degreeTable,nodeValue,nodeInfo,tmpNodeValue,tmpNodeInfo);
 }
+
+template<>
+void
+loss_csr<kDLGPU, int32_t>(
+  IdArray &raw_ptr,
+  IdArray &new_ptr,
+  IdArray &raw_indice,
+  IdArray &new_indice
+) {
+  c_loss_csr(raw_ptr,new_ptr,raw_indice,new_indice);
+}
+
 
 #endif  // DGL_USE_CUDA
 
@@ -480,6 +493,16 @@ DGL_REGISTER_GLOBAL("transform._CAPI_PPR")
   });
 
 
+DGL_REGISTER_GLOBAL("transform._CAPI_LOSSCSR")
+.set_body([] (DGLArgs args, DGLRetValue *rv) {
+    IdArray raw_ptr = args[0];
+    IdArray new_ptr = args[1];
+    IdArray raw_indice = args[2];
+    IdArray new_indice = args[3];
+
+    loss_csr<kDLGPU, int32_t>(raw_ptr,new_ptr,raw_indice,new_indice);
+    *rv = ConvertNDArrayVectorToPackedFunc({new_indice});
+  });
 
 };  // namespace transform
 

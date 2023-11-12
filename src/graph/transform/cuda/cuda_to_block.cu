@@ -504,6 +504,30 @@ __global__ void PPRkernel(
   }
 
 
+template <int BLOCK_SIZE, int TILE_SIZE>
+__global__ void lossCsrKernel(
+  int* in_raw_ptr,
+  int* in_new_ptr,
+  int* in_raw_indice,
+  int* in_new_indice,
+  int64_t nodeNUM) {
+    const size_t block_start = TILE_SIZE * blockIdx.x;
+    const size_t block_end = TILE_SIZE * (blockIdx.x + 1);
+    for (size_t index = threadIdx.x + block_start; index < block_end;
+        index += BLOCK_SIZE) {
+      if (index < nodeNUM) {
+        int new_len = in_new_ptr[index+1] - in_new_ptr[index];
+        int raw_len = in_raw_ptr[index+1] - in_raw_ptr[index];
+        if(new_len == 0) continue;
+        int raw_offset = in_raw_ptr[index];
+        int new_offset = in_new_ptr[index];
+        for(size_t ptr = 0 ; ptr < new_len ; ++ptr) {
+          in_new_indice[new_offset+ptr] = in_raw_indice[raw_offset+ptr];
+        }
+      }
+    }
+  }
+
 // Since partial specialization is not allowed for functions, use this as an
 // intermediate for ToBlock where XPU = kDLGPU.
 template<typename IdType>
@@ -1220,6 +1244,27 @@ c_PPR(
 
 }
 
+void
+c_loss_csr(
+  IdArray &raw_ptr,
+  IdArray &new_ptr,
+  IdArray &raw_indice,
+  IdArray &new_indice) {
+    int64_t nodeNUM = raw_ptr->shape[0]-1;
+    const int slice = 1024;
+    const int blockSize = 256;
+    int steps = (nodeNUM + slice - 1) / slice;
+    dim3 grid(steps);
+    dim3 block(blockSize);
 
+    int32_t* in_raw_ptr = static_cast<int32_t*>(raw_ptr->data);
+    int32_t* in_new_ptr = static_cast<int32_t*>(new_ptr->data);
+    int32_t* in_raw_indice = static_cast<int32_t*>(raw_indice->data);
+    int32_t* in_new_indice = static_cast<int32_t*>(new_indice->data);
+  
+    lossCsrKernel<blockSize, slice>
+    <<<grid,block>>>(in_raw_ptr,in_new_ptr,in_raw_indice,in_new_indice,nodeNUM);
+    cudaDeviceSynchronize();
+  }
 }  // namespace transform
 }  // namespace dgl

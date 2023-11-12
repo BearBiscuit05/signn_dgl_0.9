@@ -114,20 +114,23 @@ dgl.fastFindNeigEdge(nodeTable,edgeTable,src_batch,dst_batch,offset)
         None: 仅在nodeTable,edgeTable中进行修改
 """
 # nodeTable = torch.Tensor([0,0,1,0,0,0,0,0,0,0]).to(torch.int32).cuda()
-# src = torch.Tensor([0,2,4,5,2,4,5,2]).to(torch.int32).cuda()
-# dst = torch.Tensor([1,3,7,6,4,2,3,1]).to(torch.int32).cuda()
+# src = torch.Tensor([0,2,4,5,2,4,2,5]).to(torch.int32).cuda()
+# dst = torch.Tensor([1,3,7,6,4,2,1,3]).to(torch.int32).cuda()
 # src_batches = torch.chunk(src, 3, dim=0)
 # dst_batches = torch.chunk(dst, 3, dim=0)
 # batch = [src_batches, dst_batches]
 # offset = 0
-# edgeTable = torch.zeros(len(dst),dtype=torch.int32).cuda()
+# edgeTable = torch.zeros(len(dst),dtype=torch.int32)
 # print("===> BFS edge func test")
 # print(edgeTable)
 
 # for src_batch,dst_batch in zip(*batch):
+#     print('-'*10)
 #     print("src_batch:",src_batch)
 #     print("dst_batch:",dst_batch)
-#     dgl.fastFindNeigEdge(nodeTable,edgeTable,src_batch,dst_batch,offset)
+#     tmp = edgeTable[offset:offset+len(src_batch)].cuda()
+#     dgl.fastFindNeigEdge(nodeTable,tmp,src_batch,dst_batch)
+#     edgeTable[offset:offset+len(src_batch)] = tmp[:len(src_batch)].cpu()
 #     print("nodeTable:",nodeTable)
 #     print("edgeTable:",edgeTable)
 #     offset += len(src_batch)
@@ -258,16 +261,16 @@ dgl.per_pagerank(src,dst,degreeTable,nodeValue,nodeInfo)
     return:
         None: 直接在nodeValue,nodeInfo中进行修改
 """
-degreeTable = torch.Tensor([1,1,1,1,1,1,1,1,1,1,1,1]).to(torch.int32).cuda()
-src = torch.Tensor([0,4,4,1,5,5,3,6,6,7,7,2]).to(torch.int32).cuda()
-dst = torch.Tensor([4,8,5,5,8,6,6,7,8,8,4,7]).to(torch.int32).cuda()
-edgeTable = torch.zeros_like(src).to(torch.int32).cuda()
-nodeValue = torch.Tensor([0,0,10000,0,0,0,0,0]).to(torch.int32).cuda()
-nodeInfo = torch.Tensor([1,2,4,8,0,0,0,0,0,0,0,0]).to(torch.int32).cuda()
-edgeTable,nodeValue,nodeInfo = dgl.per_pagerank(src,dst,edgeTable,degreeTable,nodeValue,nodeInfo)
-print("edgeTable:",edgeTable)
-print("nodeValue:",nodeValue)
-print("nodeInfo:",nodeInfo)
+# degreeTable = torch.Tensor([1,1,1,1,1,1,1,1,1,1,1,1]).to(torch.int32).cuda()
+# src = torch.Tensor([0,4,4,1,5,5,3,6,6,7,7,2]).to(torch.int32).cuda()
+# dst = torch.Tensor([4,8,5,5,8,6,6,7,8,8,4,7]).to(torch.int32).cuda()
+# edgeTable = torch.zeros_like(src).to(torch.int32).cuda()
+# nodeValue = torch.Tensor([0,0,10000,0,0,0,0,0]).to(torch.int32).cuda()
+# nodeInfo = torch.Tensor([1,2,4,8,0,0,0,0,0,0,0,0]).to(torch.int32).cuda()
+# edgeTable,nodeValue,nodeInfo = dgl.per_pagerank(src,dst,edgeTable,degreeTable,nodeValue,nodeInfo)
+# print("edgeTable:",edgeTable)
+# print("nodeValue:",nodeValue)
+# print("nodeInfo:",nodeInfo)
 
 """
 分区中
@@ -285,3 +288,35 @@ print("nodeInfo:",nodeInfo)
 # dgl.per_pagerank(src,dst,degreeTable,nodeValue,nodeInfo)
 # print("nodeValue:",nodeValue)
 # print("nodeInfo:",nodeInfo)
+
+
+"""
+dgl.loss_csr(raw_ptr,new_ptr,raw_indice,new_indice)
+    用于删除不必要的indice部分,new_ptr需要已经给出
+    
+    args:
+        raw_ptr(int32,cuda)         : 
+        new_ptr(int32,cuda)         : 
+        raw_indice(int32,cuda)      : 
+        new_indice(int32,cuda)      : 
+
+    
+    return:
+        None: 直接在nodeValue,nodeInfo中进行修改
+"""
+raw_ptr = torch.tensor([0, 2, 5, 8, 11, 14, 17, 20], dtype=torch.int32)
+raw_indice = torch.tensor([0, 1, 3, 2, 4, 5, 0, 1, 6, 2, 3, 4, 6, 0, 1, 5, 2, 3, 4], dtype=torch.int32)
+ptr_diff = torch.diff(raw_ptr)
+select_idx = torch.tensor([0, 2, 4], dtype=torch.int64)
+ptr_diff[select_idx] = 0 
+new_ptr = torch.cat((torch.zeros(1).to(torch.int32),torch.cumsum(ptr_diff,dim = 0).to(torch.int32)))
+new_indice = torch.zeros(new_ptr[-1].item()-1).to(torch.int32)
+raw_ptr = raw_ptr.cuda()
+raw_indice = raw_indice.cuda()
+new_ptr = new_ptr.cuda()
+new_indice = new_indice.cuda()
+print("raw_ptr: ",raw_ptr)
+print("raw_indice: ",raw_indice)
+dgl.loss_csr(raw_ptr,new_ptr,raw_indice,new_indice)
+print("new_ptr: ",new_ptr)
+print("new_indice: ",new_indice)

@@ -94,7 +94,8 @@ __all__ = [
     'findSameNode',
     'sumDegree',
     'calculateP',
-    'per_pagerank'
+    'per_pagerank',
+    'loss_csr',
     ]
 
 
@@ -2424,6 +2425,10 @@ def to_block(g, dst_nodes=None, include_dst_in_src=True, src_nodes=None):
     return new_graph
 
 def remappingNode(arr1,arr2,arr3):
+    tensorList = [arr1,arr2,arr3]
+    for t in tensorList:
+        assert t.dtype == th.int32, "Expected dtype to be th.int32"
+        assert t.is_cuda, "Expected the tensor to be on 'cuda'"
     arr1_dgl = F.to_dgl_nd(arr1)
     arr2_dgl = F.to_dgl_nd(arr2)
     arr3_dgl = F.to_dgl_nd(arr3)
@@ -2452,10 +2457,8 @@ def fastFindNeighbor(nodeTable,srcList,dstList,accumulate=False,flag=1):
 def fastFindNeigEdge(nodeTable,edgeTable,src,dst,offset=0,loopFlag=1):
     tensorList = [nodeTable,edgeTable,src,dst]
     for t in tensorList:
-        if t.dtype != th.int32:
-            t = t.to(th.int32)
-        if not t.is_cuda:
-            t = t.to('cuda')
+        assert t.dtype == th.int32, "Expected dtype to be th.int32"
+        assert t.is_cuda, "Expected the tensor to be on 'cuda'"
     nodeTable_dgl = F.to_dgl_nd(nodeTable)
     edgeTable_dgl = F.to_dgl_nd(edgeTable)
     srcList_dgl = F.to_dgl_nd(src)
@@ -2467,10 +2470,8 @@ def fastFindNeigEdge(nodeTable,edgeTable,src,dst,offset=0,loopFlag=1):
 def mapLocalId(nodeTable,Gids,Lids):
     tensorList = [nodeTable,Gids,Lids]
     for t in tensorList:
-        if t.dtype != th.int32:
-            t = t.to(th.int32)
-        if not t.is_cuda:
-            t = t.to('cuda')
+        assert t.dtype == th.int32, "Expected dtype to be th.int32"
+        assert t.is_cuda, "Expected the tensor to be on 'cuda'"
     
     nodeTable_dgl = F.to_dgl_nd(nodeTable)
     Gids_dgl = F.to_dgl_nd(Gids)
@@ -2528,10 +2529,8 @@ def sumDegree(InNodeTabel,OutNodeTable,srcList,dstList):
 def calculateP(DegreeTabel,PTabel,srcList,dstList,fanout):
     tensorList = [DegreeTabel,PTabel,srcList,dstList]
     for t in tensorList:
-        if t.dtype != th.int32:
-            t = t.to(th.int32)
-        if not t.is_cuda:
-            t = t.to('cuda')
+        assert t.dtype == th.int32, "Expected dtype to be th.int32"
+        assert t.is_cuda, "Expected the tensor to be on 'cuda'"
     DegreeTabel_dgl = F.to_dgl_nd(DegreeTabel)
     PTabel_dgl = F.to_dgl_nd(PTabel)
     srcList_dgl = F.to_dgl_nd(srcList)
@@ -2556,6 +2555,21 @@ def per_pagerank(src,dst,edgeTable,degreeTable,nodeValue,nodeInfo):
     out_nodeValue = utils.toindex(array(1),dtype='int32').tousertensor()
     out_nodeInfo = utils.toindex(array(2),dtype='int32').tousertensor()
     return out_edgeTable,out_nodeValue,out_nodeInfo
+
+def loss_csr(raw_ptr,new_ptr,raw_indice,new_indice):
+    tensorList = [raw_ptr,new_ptr,raw_indice,new_indice]
+    for t in tensorList:
+        assert t.dtype == th.int32, "Expected dtype to be th.int32"
+        assert t.is_cuda, "Expected the tensor to be on 'cuda'"
+    raw_ptr_dgl = F.to_dgl_nd(raw_ptr)
+    new_ptr_dgl = F.to_dgl_nd(new_ptr)
+    raw_indice_dgl = F.to_dgl_nd(raw_indice)
+    new_indice_dgl = F.to_dgl_nd(new_indice)
+
+    array = _CAPI_LOSSCSR(raw_ptr_dgl,new_ptr_dgl,raw_indice_dgl,new_indice_dgl)
+    new_indice = utils.toindex(array(0),dtype='int32').tousertensor()
+
+
 
 def _coalesce_edge_frame(g, edge_maps, counts, aggregator):
     r"""Coalesce edge features of duplicate edges via given aggregator in g.
