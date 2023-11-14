@@ -443,6 +443,13 @@ int32_t CSRSamplingWithEdge(
   IdArray& outSRC, IdArray& outDST
 );
 
+int32_t CSRSamplingWithEdgeAndMap(
+  IdArray& cached_indptr ,IdArray& cached_indices,
+  IdArray& sampleIDs ,int seedNUM, int fanNUM,
+  IdArray& outSRC, IdArray& outDST, IdArray& mapTable
+);
+
+
 /*!
  * \brief Randomly select a fixed number of non-zero entries for each edge type
  *        along each given row independently.

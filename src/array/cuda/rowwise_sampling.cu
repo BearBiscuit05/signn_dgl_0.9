@@ -245,6 +245,176 @@ __global__ void _CSRRowWiseSampleWithEdgeKernel(
     }
 }
 
+template<typename IdType, int BLOCK_CTAS, int TILE_SIZE>
+__global__ void _CSRRowWiseSampleWithEdgeAndMapKernel(
+    const uint64_t rand_seed,
+    int64_t num_picks,      // fanout
+    int64_t num_rows,       // seedNUM
+    IdType * in_rows,       // seeds
+    IdType * in_ptr,
+    IdType * in_index,  
+    // IdType * out_ptr,       // write place
+    IdType * out_rows,      // dst
+    IdType * out_cols,      // src
+    IdType * in_mapTable) {    
+
+  assert(BLOCK_CTAS == blockDim.x);
+  const size_t block_start = TILE_SIZE * blockIdx.x;
+  const size_t block_end = TILE_SIZE * (blockIdx.x + 1);
+  int idx = blockIdx.x * blockDim.x + threadIdx.x;   
+  
+  curandStateXORWOW_t local_state;
+  curand_init(rand_seed+idx,0,0,&local_state);
+
+  for (size_t index = threadIdx.x + block_start; index < block_end;
+       index += BLOCK_CTAS) {
+      if (index < num_rows) {
+        const int64_t row = in_rows[index];
+        const int64_t in_row_start = in_ptr[row];
+        const int64_t deg = in_ptr[row+1] - in_row_start;
+        // const int64_t out_row_start = out_ptr[index];
+        const int64_t out_row_start = index * num_picks;
+        if (deg <= num_picks) {
+            size_t j = 0;
+            int picked = 0;
+            for (; j < deg; ++j) {
+                int srcid = in_index[in_row_start + j];
+                if(in_mapTable[srcid] < 0)
+                  continue;
+                else{
+                  out_rows[out_row_start + picked] = row;
+                  out_cols[out_row_start + picked] = srcid;
+                  picked++;
+                }
+            }
+            for (; picked < num_picks; ++picked) {
+              out_rows[out_row_start + picked] = -1;
+              out_cols[out_row_start + picked] = -1;
+            }
+
+        } else {
+          int picked = 0;
+          for (int j = 0; j < deg && picked < num_picks  ; ++j) {
+              int selected_j = curand(&local_state) % (deg - j);
+              int selected_node_id = in_index[in_row_start + selected_j];
+              in_index[in_row_start + selected_j] = in_index[in_row_start+deg-j-1];
+              in_index[in_row_start+deg-j-1] = selected_node_id;
+              if(in_mapTable[selected_node_id] < 0)
+                  continue;
+              else {
+                out_rows[out_row_start + picked] = row;
+                out_cols[out_row_start + picked] = selected_node_id;
+                picked++;
+              }
+          }
+
+          for (; picked < num_picks; ++picked) {
+            out_rows[out_row_start + picked] = -1;
+            out_cols[out_row_start + picked] = -1;
+          }
+        } 
+      }
+    }
+}
+
+template <typename IdType>
+struct BlockPrefixCallbackOp {
+  IdType running_total_;
+
+  __device__ BlockPrefixCallbackOp(const IdType running_total)
+      : running_total_(running_total) {}
+
+  __device__ IdType operator()(const IdType block_aggregate) {
+    const IdType old_prefix = running_total_;
+    running_total_ += block_aggregate;
+    return old_prefix;
+  }
+};
+
+template <size_t BLOCK_SIZE, size_t TILE_SIZE>
+__global__ void sample_compact_edge(
+  const int *tmp_src, 
+  const int *tmp_dst,
+  int *out_src, 
+  int *out_dst, 
+  size_t *num_out,
+  const size_t *item_prefix, 
+  const int num_input,
+  const int fanout) {
+  assert(BLOCK_SIZE == blockDim.x);
+  using BlockScan = typename cub::BlockScan<size_t, BLOCK_SIZE>;
+  constexpr const size_t VALS_PER_THREAD = TILE_SIZE / BLOCK_SIZE;
+  __shared__ typename BlockScan::TempStorage temp_space;
+  const size_t offset = item_prefix[blockIdx.x];
+  BlockPrefixCallbackOp<size_t> prefix_op(0);
+  for (int i = 0; i < VALS_PER_THREAD; ++i) {
+    const size_t index = threadIdx.x + i * BLOCK_SIZE + blockIdx.x * TILE_SIZE;
+
+    size_t item_per_thread = 0;
+    if (index < num_input) {
+      for (size_t j = 0; j < fanout; j++) {
+        if (tmp_src[index * fanout + j] != -1) {
+          item_per_thread++;
+        }
+      }
+    }
+
+    size_t item_prefix_per_thread = item_per_thread;
+    BlockScan(temp_space)
+        .ExclusiveSum(item_prefix_per_thread, item_prefix_per_thread,
+                      prefix_op);
+    __syncthreads();
+    
+    for (size_t j = 0; j < item_per_thread; j++) {
+      out_src[offset + item_prefix_per_thread + j] =
+          tmp_src[index * fanout + j];
+      out_dst[offset + item_prefix_per_thread + j] =
+          tmp_dst[index * fanout + j];
+    }
+  }
+
+  if (threadIdx.x == 0 && blockIdx.x == 0) {
+    *num_out = item_prefix[gridDim.x];
+  }
+}
+
+template <size_t BLOCK_SIZE, size_t TILE_SIZE>
+__global__ void sample_count_edge(
+  int *edge_src, 
+  size_t *item_prefix,
+  const size_t num_input, 
+  const size_t fanout) {
+  assert(BLOCK_SIZE == blockDim.x);
+  using BlockReduce = typename cub::BlockReduce<size_t, BLOCK_SIZE>;
+  const size_t block_start = TILE_SIZE * blockIdx.x;
+  const size_t block_end = TILE_SIZE * (blockIdx.x + 1);
+
+  size_t count = 0;
+#pragma unroll
+  for (size_t index = threadIdx.x + block_start; index < block_end;
+       index += BLOCK_SIZE) {
+    if (index < num_input) {
+      for (size_t j = 0; j < fanout; j++) {
+        if (edge_src[index * fanout + j] != -1) {
+          ++count;
+        }
+      }
+    }
+  }
+
+  __shared__ typename BlockReduce::TempStorage temp_space;
+
+  count = BlockReduce(temp_space).Sum(count);
+
+  if (threadIdx.x == 0) {
+    item_prefix[blockIdx.x] = count;
+    if (blockIdx.x == 0) {
+      item_prefix[gridDim.x] = 0;
+    }
+  }
+}
+
+
 /**
 * @brief Perform row-wise uniform sampling on a CSR matrix,
 * and generate a COO matrix, with replacement.
@@ -404,6 +574,86 @@ template int32_t CSRSamplingWithEdgeUniform<kDLGPU, int64_t>(
     IdArray&  ,IdArray& ,IdArray& ,int , int ,IdArray& , IdArray&);
 
 
+template <DLDeviceType XPU, typename IdType>
+int32_t CSRSamplingWithEdgeAndMapTable(
+	IdArray& indptr ,IdArray& indices,
+  IdArray& sampleIDs ,int seedNUM, int fanNUM,
+  IdArray& outSRC, IdArray& outDST, IdArray& mapTable
+){
+  const auto& ctx = indptr->ctx;
+  auto device = runtime::DeviceAPI::Get(ctx);
+  cudaStream_t stream = 0;
+
+  int64_t num_rows = sampleIDs->shape[0];
+  IdType * slice_rows = static_cast<IdType*>(sampleIDs->data);
+  IdType* in_ptr = static_cast<IdType*>(indptr->data);
+  IdType* in_cols = static_cast<IdType*>(indices->data);
+  IdType* out_rows = static_cast<IdType*>(outDST->data);
+  IdType* out_cols = static_cast<IdType*>(outSRC->data);
+  IdType* in_mapTable = static_cast<IdType*>(mapTable->data);
+  IdType *tmp_src = static_cast<IdType *>(device->AllocWorkspace(ctx,sizeof(IdType) * seedNUM * fanNUM));
+  IdType *tmp_dst = static_cast<IdType *>(device->AllocWorkspace(ctx,sizeof(IdType) * seedNUM * fanNUM));
+
+  const int slice = 1024;
+  const int blockSize = 256;
+  int steps = (num_rows + slice - 1) / slice;
+  dim3 grid(steps);
+  dim3 block(blockSize);
+  const uint64_t random_seed = RandomEngine::ThreadLocal()->RandInt(1000000000);
+  _CSRRowWiseSampleWithEdgeAndMapKernel<IdType, blockSize, slice><<<grid, block, 0, stream>>>(
+      random_seed,
+      fanNUM,
+      num_rows,
+      slice_rows,
+      in_ptr,
+      in_cols,
+      tmp_dst,
+      tmp_src,
+      in_mapTable);
+
+  CUDA_CALL(cudaDeviceSynchronize());
+
+  size_t *item_prefix = static_cast<size_t *>(device->AllocWorkspace(ctx,sizeof(size_t) * (grid.x + 1)));
+  sample_count_edge<blockSize, slice>
+    <<<grid, block>>>(tmp_src, item_prefix, seedNUM, fanNUM);
+  CUDA_CALL(cudaDeviceSynchronize());
+
+  size_t workspace_bytes;
+  CUDA_CALL(cub::DeviceScan::ExclusiveSum(
+      nullptr, workspace_bytes, static_cast<size_t *>(nullptr),
+      static_cast<size_t *>(nullptr), grid.x + 1));
+  CUDA_CALL(cudaDeviceSynchronize());
+
+  void *workspace = device->AllocWorkspace(ctx,workspace_bytes);
+  CUDA_CALL(cub::DeviceScan::ExclusiveSum(workspace, workspace_bytes,
+                                          item_prefix, item_prefix, grid.x + 1));
+  CUDA_CALL(cudaDeviceSynchronize());
+
+  size_t *num_out = static_cast<size_t *>(device->AllocWorkspace(ctx,sizeof(size_t) * 1));
+  sample_compact_edge<blockSize, slice>
+    <<<grid, block>>>(tmp_src, tmp_dst, out_cols, out_rows,
+                                    num_out, item_prefix, seedNUM, fanNUM);
+  CUDA_CALL(cudaDeviceSynchronize());
+
+  IdType new_len;
+  device->CopyDataFromTo(num_out, 0, &new_len, 0,
+        sizeof(new_len),
+        ctx,
+        DGLContext{kDLCPU, 0},
+        indptr->dtype);
+
+  device->FreeWorkspace(ctx,workspace);
+  device->FreeWorkspace(ctx,item_prefix);
+  device->FreeWorkspace(ctx,tmp_src);
+  device->FreeWorkspace(ctx,tmp_dst);
+
+  return new_len;
+}
+
+template int32_t CSRSamplingWithEdgeAndMapTable<kDLGPU, int32_t>(
+    IdArray& ,IdArray&,IdArray& ,int, int, IdArray& ,IdArray& ,IdArray&);
+// template int32_t CSRSamplingWithEdgeAndMapTable<kDLGPU, int64_t>(
+//     IdArray&  ,IdArray& ,IdArray& ,int , int ,IdArray& , IdArray& ,IdArray&);
 
 template <DLDeviceType XPU, typename IdType>
 COOMatrix CSRRowWiseSamplingUniform(CSRMatrix mat,

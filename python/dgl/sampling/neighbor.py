@@ -13,6 +13,7 @@ __all__ = [
     'sample_neighbors',
     'sample_neighbors_biased',
     'sample_with_edge',
+    'sample_with_edge_and_map',
     'select_topk']
 
 def sample_etype_neighbors(g, nodes, etype_field, fanout, edge_dir='in', prob=None,
@@ -161,6 +162,22 @@ def sample_with_edge(indptr,indices,sampleIDs,seedNUM,fanNUM,outSRC,outDST):
     outDST = utils.toindex(arr(1),dtype='int32').tousertensor()
     NUMArray = utils.toindex(arr(2),dtype='int32').tousertensor()
     return NUMArray[0]
+
+def sample_with_edge_and_map(indptr,indices,sampleIDs,seedNUM,fanNUM,outSRC,outDST,mapTable):
+    _indptr = F.to_dgl_nd(indptr)
+    _indices = F.to_dgl_nd(indices)
+    _sampleIDs = F.to_dgl_nd(sampleIDs)
+    _outSRC = F.to_dgl_nd(outSRC)
+    _outDST = F.to_dgl_nd(outDST)
+    _mapTable = F.to_dgl_nd(mapTable)
+    arr = _CAPI_DGLSampleNeighborsWithEdgeAndMap(_indptr,_indices,_sampleIDs,seedNUM,fanNUM,_outSRC,_outDST,_mapTable)
+    outSRC = utils.toindex(arr(0),dtype='int32').tousertensor()
+    outDST = utils.toindex(arr(1),dtype='int32').tousertensor()
+    NUMArray = utils.toindex(arr(2),dtype='int32').tousertensor()
+    return NUMArray[0]
+
+
+
 
 def sample_neighbors(g, nodes, fanout, edge_dir='in', prob=None, replace=False,
                      copy_ndata=True, copy_edata=True, _dist_training=False,

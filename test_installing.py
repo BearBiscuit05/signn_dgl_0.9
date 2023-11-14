@@ -62,6 +62,31 @@ dgl.sampling.sample_with_edge(inptr, indices, seed, seed_num,fanout, outSRC,outD
 # print(outSRC)
 # print(outDST)
 
+src = torch.Tensor([0,5,5,7,8,10]).to(torch.int32).cuda()
+dst = torch.Tensor([2,10,5,6,7,8,9,10,12,14]).to(torch.int32).cuda()
+uni = torch.Tensor([0,2]).to(torch.int32).cuda()
+mapTable = torch.zeros(15).to(torch.int32)
+mapTable[5] = -1
+mapTable[8] = -1
+mapTable[9] = -1
+mapTable[10] = -1
+seed_num = 2
+fanout = 5
+mapTable = mapTable.cuda()
+outSRC = torch.zeros(20).to(torch.int32).cuda()
+outDST = torch.zeros(20).to(torch.int32).cuda()
+
+print(outSRC)
+print(outDST)
+print(mapTable)
+NUM = dgl.sampling.sample_with_edge_and_map(src, dst, uni, seed_num,fanout, outSRC,outDST,mapTable)
+print(NUM)
+print(outSRC)
+print(outDST)
+
+
+
+
 # =========================haloTest===========================
 # ptr = torch.Tensor([0,1,4,6,8,10]).to(torch.int32).cuda()
 # inlice = torch.Tensor([3,-1,-1,-1,8,6,-1,-1,6,10]).to(torch.int32).cuda()
@@ -304,19 +329,19 @@ dgl.loss_csr(raw_ptr,new_ptr,raw_indice,new_indice)
     return:
         None: 直接在nodeValue,nodeInfo中进行修改
 """
-raw_ptr = torch.tensor([0, 2, 5, 8, 11, 14, 17, 20], dtype=torch.int32)
-raw_indice = torch.tensor([0, 1, 3, 2, 4, 5, 0, 1, 6, 2, 3, 4, 6, 0, 1, 5, 2, 3, 4], dtype=torch.int32)
-ptr_diff = torch.diff(raw_ptr)
-select_idx = torch.tensor([0, 2, 4], dtype=torch.int64)
-ptr_diff[select_idx] = 0 
-new_ptr = torch.cat((torch.zeros(1).to(torch.int32),torch.cumsum(ptr_diff,dim = 0).to(torch.int32)))
-new_indice = torch.zeros(new_ptr[-1].item()-1).to(torch.int32)
-raw_ptr = raw_ptr.cuda()
-raw_indice = raw_indice.cuda()
-new_ptr = new_ptr.cuda()
-new_indice = new_indice.cuda()
-print("raw_ptr: ",raw_ptr)
-print("raw_indice: ",raw_indice)
-dgl.loss_csr(raw_ptr,new_ptr,raw_indice,new_indice)
-print("new_ptr: ",new_ptr)
-print("new_indice: ",new_indice)
+# raw_ptr = torch.tensor([0, 2, 5, 8, 11, 14, 17, 20], dtype=torch.int32)
+# raw_indice = torch.tensor([0, 1, 3, 2, 4, 5, 0, 1, 6, 2, 3, 4, 6, 0, 1, 5, 2, 3, 4], dtype=torch.int32)
+# ptr_diff = torch.diff(raw_ptr)
+# select_idx = torch.tensor([0, 2, 4], dtype=torch.int64)
+# ptr_diff[select_idx] = 0 
+# new_ptr = torch.cat((torch.zeros(1).to(torch.int32),torch.cumsum(ptr_diff,dim = 0).to(torch.int32)))
+# new_indice = torch.zeros(new_ptr[-1].item()-1).to(torch.int32)
+# raw_ptr = raw_ptr.cuda()
+# raw_indice = raw_indice.cuda()
+# new_ptr = new_ptr.cuda()
+# new_indice = new_indice.cuda()
+# print("raw_ptr: ",raw_ptr)
+# print("raw_indice: ",raw_indice)
+# dgl.loss_csr(raw_ptr,new_ptr,raw_indice,new_indice)
+# print("new_ptr: ",new_ptr)
+# print("new_indice: ",new_indice)

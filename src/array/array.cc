@@ -554,6 +554,15 @@ int32_t CSRSamplingWithEdge(
 			outSRC,outDST);
 }
 
+int32_t CSRSamplingWithEdgeAndMap(
+    IdArray& cached_indptr ,IdArray& cached_indices,
+		IdArray& sampleIDs ,int seedNUM, int fanNUM,
+		IdArray& outSRC, IdArray& outDST, IdArray& mapTable) {		
+		int32_t NUM = impl::CSRSamplingWithEdgeAndMapTable<kDLGPU, int32_t>(
+			cached_indptr,cached_indices,
+			sampleIDs,seedNUM,fanNUM,
+			outSRC,outDST,mapTable);
+}
 
 COOMatrix CSRRowWiseSampling(
     CSRMatrix mat, IdArray rows, int64_t num_samples, FloatArray prob, bool replace) {

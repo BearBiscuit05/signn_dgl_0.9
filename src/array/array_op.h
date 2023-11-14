@@ -166,6 +166,13 @@ int32_t CSRSamplingWithEdge(
   IdArray& outSRC, IdArray& outDST
 );
 
+template <DLDeviceType XPU, typename IdType>
+int32_t CSRSamplingWithEdgeAndMap(
+  IdArray& cached_indptr ,IdArray& cached_indices,
+  IdArray& sampleIDs ,int seedNUM, int fanNUM,
+  IdArray& outSRC, IdArray& outDST, IdArray& mapTable
+);
+
 // FloatType is the type of probability data.
 template <DLDeviceType XPU, typename IdType, typename FloatType>
 COOMatrix CSRRowWiseSampling(
@@ -185,6 +192,11 @@ int32_t CSRSamplingWithEdgeUniform(
     IdArray& outSRC, IdArray& outDST
 );
 
+template <DLDeviceType XPU, typename IdType>
+int32_t CSRSamplingWithEdgeAndMapTable(
+	IdArray& cached_indptr ,IdArray& cached_indices,
+    IdArray& sampleIDs ,int seedNUM, int fanNUM,
+    IdArray& outSRC, IdArray& outDST, IdArray& mapTable);
 
 template <DLDeviceType XPU, typename IdType>
 COOMatrix CSRRowWiseSamplingUniform(

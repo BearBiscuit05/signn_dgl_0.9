@@ -422,6 +422,16 @@ int32_t SampleWithEdge(
   return NUM;
 }
 
+int32_t SampleWithEdgeAndMap(
+  IdArray& indptr ,IdArray& indices,
+  IdArray& sampleIDs ,int seedNUM, int fanNUM,
+  IdArray& outSRC, IdArray& outDST, IdArray& mapTable
+  ) {
+  int32_t NUM = aten::CSRSamplingWithEdgeAndMap(indptr ,indices ,sampleIDs ,seedNUM ,fanNUM ,outSRC ,outDST,mapTable); 
+  return NUM;
+}
+
+
 DGL_REGISTER_GLOBAL("sampling.neighbor._CAPI_DGLSampleNeighborsEType")
 .set_body([] (DGLArgs args, DGLRetValue *rv) {
     HeteroGraphRef hg = args[0];
@@ -461,6 +471,23 @@ DGL_REGISTER_GLOBAL("sampling.neighbor._CAPI_DGLSampleNeighborsWithEdge")
       IdArray NUMArray = Full(NUM ,1 , sizeof(int)*8,cached_indptr->ctx);
       *rv = ConvertNDArrayVectorToPackedFunc({outSRC, outDST, NUMArray});
   });
+
+DGL_REGISTER_GLOBAL("sampling.neighbor._CAPI_DGLSampleNeighborsWithEdgeAndMap")
+.set_body([] (DGLArgs args, DGLRetValue *rv) {
+      IdArray cached_indptr = args[0];
+      IdArray cached_indices = args[1];
+      IdArray sampleIDs = args[2];
+      int seedNUM = args[3];
+      int fanNUM = args[4];
+      IdArray outSRC = args[5];
+      IdArray outDST = args[6];
+      IdArray mapTable = args[7];
+      int NUM = sampling::SampleWithEdgeAndMap(
+        cached_indptr,cached_indices,sampleIDs,seedNUM,fanNUM,outSRC,outDST,mapTable);
+      IdArray NUMArray = Full(NUM ,1 , sizeof(int)*8,cached_indptr->ctx);
+      *rv = ConvertNDArrayVectorToPackedFunc({outSRC, outDST, NUMArray});
+  });
+
 
 
 DGL_REGISTER_GLOBAL("sampling.neighbor._CAPI_DGLSampleNeighbors")
