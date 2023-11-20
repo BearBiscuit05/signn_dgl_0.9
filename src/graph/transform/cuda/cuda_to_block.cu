@@ -517,7 +517,7 @@ __global__ void lossCsrKernel(
         index += BLOCK_SIZE) {
       if (index < nodeNUM) {
         int new_len = in_new_ptr[index+1] - in_new_ptr[index];
-        int raw_len = in_raw_ptr[index+1] - in_raw_ptr[index];
+        // int raw_len = in_raw_ptr[index+1] - in_raw_ptr[index];
         if(new_len == 0) continue;
         int raw_offset = in_raw_ptr[index];
         int new_offset = in_new_ptr[index];
@@ -527,6 +527,29 @@ __global__ void lossCsrKernel(
       }
     }
   }
+
+
+template <int BLOCK_SIZE, int TILE_SIZE>
+__global__ void cooTocsrKernel(
+  int* in_inptr,
+  int* in_indice,
+  int* in_addr,
+  int* in_srcList,
+  int* in_dstList,
+  int64_t edgeNUM
+) {
+  const size_t block_start = TILE_SIZE * blockIdx.x;
+  const size_t block_end = TILE_SIZE * (blockIdx.x + 1);
+  for (size_t index = threadIdx.x + block_start; index < block_end;
+      index += BLOCK_SIZE) {
+    if (index < edgeNUM) {
+      int dstId = in_dstList[index];
+      int srcId = in_srcList[index];
+      int place = atomicAdd(&in_addr[srcId], 1);
+      in_indice[place] = dstId;
+    }
+  }
+}
 
 // Since partial specialization is not allowed for functions, use this as an
 // intermediate for ToBlock where XPU = kDLGPU.
@@ -1266,5 +1289,31 @@ c_loss_csr(
     <<<grid,block>>>(in_raw_ptr,in_new_ptr,in_raw_indice,in_new_indice,nodeNUM);
     cudaDeviceSynchronize();
   }
+
+void
+c_cooTocsr(
+  IdArray &inptr,
+  IdArray &indice,
+  IdArray &addr,
+  IdArray &srcList,
+  IdArray &dstList) {
+    int64_t edgeNUM = srcList->shape[0];
+    const int slice = 1024;
+    const int blockSize = 256;
+    int steps = (edgeNUM + slice - 1) / slice;
+    dim3 grid(steps);
+    dim3 block(blockSize);
+
+    int32_t* in_inptr = static_cast<int32_t*>(inptr->data);
+    int32_t* in_indice = static_cast<int32_t*>(indice->data);
+    int32_t* in_addr = static_cast<int32_t*>(addr->data);
+    int32_t* in_srcList = static_cast<int32_t*>(srcList->data);
+    int32_t* in_dstList = static_cast<int32_t*>(dstList->data);
+    cooTocsrKernel<blockSize, slice>
+      <<<grid,block>>>(in_inptr,in_indice,in_addr,in_srcList,in_dstList,edgeNUM);
+    cudaDeviceSynchronize();
+  }
+
+
 }  // namespace transform
 }  // namespace dgl

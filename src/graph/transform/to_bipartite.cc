@@ -191,6 +191,9 @@ void
 c_PPR(IdArray &src,IdArray &dst,IdArray &edgeTable,IdArray &degreeTable,IdArray &nodeValue,IdArray &nodeInfo,IdArray &tmpNodeValue,IdArray &tmpNodeInfo);
 void
 c_loss_csr(IdArray &raw_ptr,IdArray &new_ptr,IdArray &raw_indice,IdArray &new_indice);
+void
+c_cooTocsr(IdArray &inptr,IdArray &indice,IdArray &addr,IdArray &srcList,IdArray &dstList);
+
 
 template<>
 std::tuple<HeteroGraphPtr, std::vector<IdArray>>
@@ -335,6 +338,18 @@ loss_csr<kDLGPU, int32_t>(
   IdArray &new_indice
 ) {
   c_loss_csr(raw_ptr,new_ptr,raw_indice,new_indice);
+}
+
+template<>
+void
+cooTocsr<kDLGPU, int32_t>(
+  IdArray &inptr,
+  IdArray &indice,
+  IdArray &addr,
+  IdArray &srcList,
+  IdArray &dstList
+) {
+  c_cooTocsr(inptr,indice,addr,srcList,dstList);
 }
 
 
@@ -503,6 +518,20 @@ DGL_REGISTER_GLOBAL("transform._CAPI_LOSSCSR")
     loss_csr<kDLGPU, int32_t>(raw_ptr,new_ptr,raw_indice,new_indice);
     *rv = ConvertNDArrayVectorToPackedFunc({new_indice});
   });
+
+DGL_REGISTER_GLOBAL("transform._CAPI_COOTOCSR")
+.set_body([] (DGLArgs args, DGLRetValue *rv) {
+    IdArray inptr = args[0];
+    IdArray indice = args[1];
+    IdArray addr = args[2];
+    IdArray srcList = args[3];
+    IdArray dstList = args[4];
+    
+    cooTocsr<kDLGPU, int32_t>(inptr,indice,addr,srcList,dstList);
+    *rv = ConvertNDArrayVectorToPackedFunc({indice,addr});
+  });
+
+
 
 };  // namespace transform
 

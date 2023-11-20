@@ -96,6 +96,7 @@ __all__ = [
     'calculateP',
     'per_pagerank',
     'loss_csr',
+    'cooTocsr'
     ]
 
 
@@ -2569,7 +2570,20 @@ def loss_csr(raw_ptr,new_ptr,raw_indice,new_indice):
     array = _CAPI_LOSSCSR(raw_ptr_dgl,new_ptr_dgl,raw_indice_dgl,new_indice_dgl)
     new_indice = utils.toindex(array(0),dtype='int32').tousertensor()
 
+def cooTocsr(inptr,indice,addr,srcList,dstList):
+    tensorList = [inptr,indice,addr,srcList,dstList]
+    for t in tensorList:
+        assert t.dtype == th.int32, "Expected dtype to be th.int32"
+        assert t.is_cuda, "Expected the tensor to be on 'cuda'"
+    inptr_dgl = F.to_dgl_nd(inptr)
+    indice_dgl = F.to_dgl_nd(indice)
+    addr_dgl = F.to_dgl_nd(addr)
+    srcList_dgl = F.to_dgl_nd(srcList)
+    dstList_dgl = F.to_dgl_nd(dstList)
 
+    array = _CAPI_COOTOCSR(inptr_dgl,indice_dgl,addr_dgl,srcList_dgl,dstList_dgl)
+    indice = utils.toindex(array(0),dtype='int32').tousertensor()
+    addr = utils.toindex(array(1),dtype='int32').tousertensor()
 
 def _coalesce_edge_frame(g, edge_maps, counts, aggregator):
     r"""Coalesce edge features of duplicate edges via given aggregator in g.

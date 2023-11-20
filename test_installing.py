@@ -345,3 +345,13 @@ dgl.loss_csr(raw_ptr,new_ptr,raw_indice,new_indice)
 # dgl.loss_csr(raw_ptr,new_ptr,raw_indice,new_indice)
 # print("new_ptr: ",new_ptr)
 # print("new_indice: ",new_indice)
+
+
+"""
+dgl.cooTocsr(inptr,indice,addr,srcList,dstList)
+    将coo转换为csr的格式
+    压缩 src 保留 dst
+"""
+
+raw_ptr = torch.tensor([0, 1, 3, 2, 4, 5, 0, 1, 6, 2, 3, 4, 6, 0, 1, 5, 2, 3, 4], dtype=torch.int32)
+raw_indice = torch.tensor([0, 1, 3, 2, 4, 5, 0, 1, 6, 2, 3, 4, 6, 0, 1, 5, 2, 3, 4], dtype=torch.int32)

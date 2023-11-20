@@ -104,6 +104,11 @@ void
 loss_csr(
 IdArray &raw_ptr,IdArray &new_ptr,IdArray &raw_indice,IdArray &new_indice);
 
+template<DLDeviceType XPU, typename IdType>
+void
+cooTocsr(
+IdArray &inptr,IdArray &indice,IdArray &addr,IdArray &srcList,IdArray &dstList);
+
 }  // namespace transform
 }  // namespace dgl
 
