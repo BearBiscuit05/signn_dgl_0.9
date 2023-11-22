@@ -482,6 +482,7 @@ __global__ void PPRkernel(
   int64_t edgeNUM) {
     // src -> dst value and info
     float d = 0.85;
+    float decay = 0.01;
     const size_t block_start = TILE_SIZE * blockIdx.x;
     const size_t block_end = TILE_SIZE * (blockIdx.x + 1);
     for (size_t index = threadIdx.x + block_start; index < block_end;
@@ -495,10 +496,10 @@ __global__ void PPRkernel(
         int dst_info = in_nodeInfo[dstId] | src_info;
         edgeTable[index] = src_info;
         atomicOr(&in_tmpNodeInfo[dstId],dst_info);
-        if(value == 0.0f)
-          continue;
-        float con = value * d / (1000.0f * degree);
-        atomicAdd(&in_tmpNodeValue[dstId], int(con*1000));
+        // if(value == 0.0f)
+        //   continue;
+        float con = value * d * decay / (10000.0f * degree);
+        atomicAdd(&in_tmpNodeValue[dstId], int(con*10000));
       }
     }
   }

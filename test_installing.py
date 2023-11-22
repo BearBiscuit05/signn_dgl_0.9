@@ -62,27 +62,27 @@ dgl.sampling.sample_with_edge(inptr, indices, seed, seed_num,fanout, outSRC,outD
 # print(outSRC)
 # print(outDST)
 
-src = torch.Tensor([0,5,5,7,8,10]).to(torch.int32).cuda()
-dst = torch.Tensor([2,10,5,6,7,8,9,10,12,14]).to(torch.int32).cuda()
-uni = torch.Tensor([0,2]).to(torch.int32).cuda()
-mapTable = torch.zeros(15).to(torch.int32)
-mapTable[5] = -1
-mapTable[8] = -1
-mapTable[9] = -1
-mapTable[10] = -1
-seed_num = 2
-fanout = 5
-mapTable = mapTable.cuda()
-outSRC = torch.zeros(20).to(torch.int32).cuda()
-outDST = torch.zeros(20).to(torch.int32).cuda()
+# src = torch.Tensor([0,5,5,7,8,10]).to(torch.int32).cuda()
+# dst = torch.Tensor([2,10,5,6,7,8,9,10,12,14]).to(torch.int32).cuda()
+# uni = torch.Tensor([0,2]).to(torch.int32).cuda()
+# mapTable = torch.zeros(15).to(torch.int32)
+# mapTable[5] = -1
+# mapTable[8] = -1
+# mapTable[9] = -1
+# mapTable[10] = -1
+# seed_num = 2
+# fanout = 5
+# mapTable = mapTable.cuda()
+# outSRC = torch.zeros(20).to(torch.int32).cuda()
+# outDST = torch.zeros(20).to(torch.int32).cuda()
 
-print(outSRC)
-print(outDST)
-print(mapTable)
-NUM = dgl.sampling.sample_with_edge_and_map(src, dst, uni, seed_num,fanout, outSRC,outDST,mapTable)
-print(NUM)
-print(outSRC)
-print(outDST)
+# print(outSRC)
+# print(outDST)
+# print(mapTable)
+# NUM = dgl.sampling.sample_with_edge_and_map(src, dst, uni, seed_num,fanout, outSRC,outDST,mapTable)
+# print(NUM)
+# print(outSRC)
+# print(outDST)
 
 
 
@@ -232,16 +232,19 @@ dgl.mapByNodeSet(nodeTable,uniTable,srcList,dstList)
     return:
         src(int32,cuda)         : 表示重排后图的起始列
         dst(int32,cuda)         : 表示重排后图的终止列
-        uniTable(int32,cuda)    : 图被排序后的id映射表
+        uniTable(int32,cuda)    : 图被排序后的id映射表,长度已进行修改
 """
-#
-#
-#
-#
-#
-#
-#
-#
+# nodeTable = torch.Tensor([1,0,5,4,0,1,2,3]).to(torch.int32).cuda()
+# uniTable = torch.zeros_like(nodeTable).to(torch.int32).cuda()
+# Gid = torch.Tensor([0,1,2]).to(torch.int32).cuda()
+# Lid = torch.zeros_like(Gid).to(torch.int32).cuda()
+# print(Gid)
+# print(Lid)
+# Gid,Lid,uniTable = dgl.mapByNodeSet(nodeTable,uniTable,Gid,Lid)
+# print(nodeTable)
+# print(uniTable)
+# print(Gid)
+# print(Lid)
 
 
 """
@@ -290,7 +293,7 @@ dgl.per_pagerank(src,dst,degreeTable,nodeValue,nodeInfo)
 # src = torch.Tensor([0,4,4,1,5,5,3,6,6,7,7,2]).to(torch.int32).cuda()
 # dst = torch.Tensor([4,8,5,5,8,6,6,7,8,8,4,7]).to(torch.int32).cuda()
 # edgeTable = torch.zeros_like(src).to(torch.int32).cuda()
-# nodeValue = torch.Tensor([0,0,10000,0,0,0,0,0]).to(torch.int32).cuda()
+# nodeValue = torch.Tensor([0,0,1000000,0,0,0,0,0]).to(torch.int32).cuda()
 # nodeInfo = torch.Tensor([1,2,4,8,0,0,0,0,0,0,0,0]).to(torch.int32).cuda()
 # edgeTable,nodeValue,nodeInfo = dgl.per_pagerank(src,dst,edgeTable,degreeTable,nodeValue,nodeInfo)
 # print("edgeTable:",edgeTable)
@@ -353,5 +356,5 @@ dgl.cooTocsr(inptr,indice,addr,srcList,dstList)
     压缩 src 保留 dst
 """
 
-raw_ptr = torch.tensor([0, 1, 3, 2, 4, 5, 0, 1, 6, 2, 3, 4, 6, 0, 1, 5, 2, 3, 4], dtype=torch.int32)
-raw_indice = torch.tensor([0, 1, 3, 2, 4, 5, 0, 1, 6, 2, 3, 4, 6, 0, 1, 5, 2, 3, 4], dtype=torch.int32)
+# raw_ptr = torch.tensor([0, 1, 3, 2, 4, 5, 0, 1, 6, 2, 3, 4, 6, 0, 1, 5, 2, 3, 4], dtype=torch.int32)
+# raw_indice = torch.tensor([0, 1, 3, 2, 4, 5, 0, 1, 6, 2, 3, 4, 6, 0, 1, 5, 2, 3, 4], dtype=torch.int32)
