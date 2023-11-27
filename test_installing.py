@@ -236,11 +236,11 @@ dgl.mapByNodeSet(nodeTable,uniTable,srcList,dstList)
 """
 # nodeTable = torch.Tensor([1,0,5,4,0,1,2,3]).to(torch.int32).cuda()
 # uniTable = torch.zeros_like(nodeTable).to(torch.int32).cuda()
-# Gid = torch.Tensor([0,1,2]).to(torch.int32).cuda()
-# Lid = torch.zeros_like(Gid).to(torch.int32).cuda()
+# Gid = torch.Tensor([2]).to(torch.int32).cuda()
+# Lid = torch.zeros_like(Gid).to(torch.int32).cuda() + 1
 # print(Gid)
 # print(Lid)
-# Gid,Lid,uniTable = dgl.mapByNodeSet(nodeTable,uniTable,Gid,Lid)
+# Gid,Lid,uniTable = dgl.mapByNodeSet(nodeTable,uniTable,Gid,Lid,rhsNeed=False,include_rhs_in_lhs=False)
 # print(nodeTable)
 # print(uniTable)
 # print(Gid)
@@ -358,3 +358,15 @@ dgl.cooTocsr(inptr,indice,addr,srcList,dstList)
 
 # raw_ptr = torch.tensor([0, 1, 3, 2, 4, 5, 0, 1, 6, 2, 3, 4, 6, 0, 1, 5, 2, 3, 4], dtype=torch.int32)
 # raw_indice = torch.tensor([0, 1, 3, 2, 4, 5, 0, 1, 6, 2, 3, 4, 6, 0, 1, 5, 2, 3, 4], dtype=torch.int32)
+
+
+"""
+dgl.lpGraph(src,dst,nodeTable): 双向进行
+    进行标签传递
+"""
+src = torch.Tensor([0,2,4,5,3,4,2,5]).to(torch.int32).cuda()
+dst = torch.Tensor([1,3,7,6,4,2,1,3]).to(torch.int32).cuda()
+nodeLabel = torch.Tensor([-1,-1,2,3,4,-1,-1,-1]).to(torch.int32).cuda()
+print("nodeLabel :",nodeLabel)
+dgl.lpGraph(src,dst,nodeLabel)
+print("nodeLabel :",nodeLabel)

@@ -109,6 +109,11 @@ void
 cooTocsr(
 IdArray &inptr,IdArray &indice,IdArray &addr,IdArray &srcList,IdArray &dstList);
 
+template<DLDeviceType XPU, typename IdType>
+void
+lpGraph(
+IdArray &srcList,IdArray &dstList,IdArray &nodeTable);
+
 }  // namespace transform
 }  // namespace dgl
 

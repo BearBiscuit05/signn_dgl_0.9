@@ -286,7 +286,7 @@ __global__ void ToMergeTable(
   for (size_t index = threadIdx.x + block_start; index < block_end;
       index += BLOCK_SIZE) {
     if (index < nodeNUM) {
-      if(tmpTable[index] > 0) {
+      if(tmpTable[index] >= 0 && tmpTable[index] != INT_MAX) {
         if (acc) {
           nodeTable[index] += tmpTable[index];
         } else {
@@ -551,6 +551,66 @@ __global__ void cooTocsrKernel(
     }
   }
 }
+
+template <int BLOCK_SIZE, int TILE_SIZE>
+__global__ void lpGraphKernel(
+  int* in_srcList,
+  int* in_dstList,
+  int* nodeTable,
+  int* tmpNodeTable,
+  int64_t edgeNUM
+) {
+  const size_t block_start = TILE_SIZE * blockIdx.x;
+  const size_t block_end = TILE_SIZE * (blockIdx.x + 1);
+  for (size_t index = threadIdx.x + block_start; index < block_end;
+      index += BLOCK_SIZE) {
+    if (index < edgeNUM) {
+      int dstId = in_dstList[index];
+      int srcId = in_srcList[index];
+      int srcLabel = nodeTable[srcId];
+      int dstLabel = nodeTable[dstId];
+      if (srcLabel == -1 && dstLabel == -1) {
+        continue;
+      } else if(srcLabel >= 0 && dstLabel >= 0) {
+        int minlabel = min(srcLabel,dstLabel);
+        if (minlabel == srcLabel) {
+          atomicMin(&tmpNodeTable[dstId], minlabel);
+        } else {
+          atomicMin(&tmpNodeTable[srcId], minlabel);
+        }
+      } else if(srcLabel >= 0) {  
+        atomicMin(&tmpNodeTable[dstId], srcLabel);
+      } else {
+        atomicMin(&tmpNodeTable[srcId], dstLabel);   
+      }
+    }
+  }
+}
+
+template <int BLOCK_SIZE, int TILE_SIZE>
+__global__ void findMinLabelKernel(
+  int* nodeTable,
+  int* tmpNodeTable,
+  int64_t nodeNUM
+) {
+  const size_t block_start = TILE_SIZE * blockIdx.x;
+  const size_t block_end = TILE_SIZE * (blockIdx.x + 1);
+  for (size_t index = threadIdx.x + block_start; index < block_end;
+      index += BLOCK_SIZE) {
+    if (index < nodeNUM) {
+      int nodeId = index;
+      tmpNodeTable[nodeId] = -1;
+      int curLabel = nodeId;
+      if (nodeTable[nodeId] == -1)
+        continue;
+      while(nodeTable[curLabel] != curLabel) {
+        curLabel = nodeTable[curLabel];
+      }
+      tmpNodeTable[nodeId] = curLabel;
+    }
+  }
+}
+
 
 // Since partial specialization is not allowed for functions, use this as an
 // intermediate for ToBlock where XPU = kDLGPU.
@@ -1315,6 +1375,44 @@ c_cooTocsr(
     cudaDeviceSynchronize();
   }
 
+void
+c_lpGraph(
+  IdArray &srcList,
+  IdArray &dstList,
+  IdArray &nodeTable,
+  IdArray &tmpNodeTable) {
+    int64_t edgeNUM = srcList->shape[0];
+    const int slice = 1024;
+    const int blockSize = 256;
+    int steps = (edgeNUM + slice - 1) / slice;
+    dim3 grid(steps);
+    dim3 block(blockSize);
+
+    int32_t* in_srcList = static_cast<int32_t*>(srcList->data);
+    int32_t* in_dstList = static_cast<int32_t*>(dstList->data);
+    int32_t* in_nodeTable = static_cast<int32_t*>(nodeTable->data);
+    int32_t* in_tmpNodeTable = static_cast<int32_t*>(tmpNodeTable->data);
+    
+    lpGraphKernel<blockSize, slice>
+      <<<grid,block>>>(in_srcList,in_dstList,in_nodeTable,in_tmpNodeTable,edgeNUM);
+    cudaDeviceSynchronize();
+
+    int64_t nodeNUM = nodeTable->shape[0];
+    steps = (nodeNUM + slice - 1) / slice;
+    dim3 grid_(steps);
+    dim3 block_(blockSize);
+    ToMergeTable<blockSize, slice>
+    <<<grid_,block_>>>(in_nodeTable,in_tmpNodeTable,nodeNUM,false);
+    cudaDeviceSynchronize();
+
+    findMinLabelKernel<blockSize, slice>
+    <<<grid_,block_>>>(in_nodeTable,in_tmpNodeTable,nodeNUM);
+    cudaDeviceSynchronize();
+
+    ToMergeTable<blockSize, slice>
+    <<<grid_,block_>>>(in_nodeTable,in_tmpNodeTable,nodeNUM,false);
+    cudaDeviceSynchronize();
+  }
 
 }  // namespace transform
 }  // namespace dgl

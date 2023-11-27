@@ -96,7 +96,8 @@ __all__ = [
     'calculateP',
     'per_pagerank',
     'loss_csr',
-    'cooTocsr'
+    'cooTocsr',
+    'lpGraph'
     ]
 
 
@@ -2480,18 +2481,21 @@ def mapLocalId(nodeTable,Gids,Lids):
     arr = _CAPI_MaplocalId(nodeTable_dgl,Gids_dgl,Lids_dgl)
     Lids = utils.toindex(arr(0),dtype='int32').tousertensor()
 
-def mapByNodeSet(nodeTable,uniTabel,srcList,dstList):
+def mapByNodeSet(nodeTable,uniTabel,srcList,dstList,rhsNeed=True,include_rhs_in_lhs=True):
     tensorList = [nodeTable,srcList,dstList]
     for t in tensorList:
         assert t.dtype == th.int32, "Expected dtype to be th.int32"
         assert t.is_cuda, "Expected the tensor to be on 'cuda'"
     
     lhsNode_dgl = F.to_dgl_nd(nodeTable)
-    rhsNode_dgl = F.to_dgl_nd(copy.deepcopy(nodeTable))
+    if rhsNeed:
+        rhsNode_dgl = F.to_dgl_nd(nodeTable.clone())
+    else:
+        rhsNode_dgl = F.to_dgl_nd(nodeTable[:1].clone())
     uniTabel_dgl = F.to_dgl_nd(uniTabel)
     srcList_dgl = F.to_dgl_nd(srcList)
     dstList_dgl = F.to_dgl_nd(dstList)
-    arr = _CAPI_MapByNodeSet(lhsNode_dgl,rhsNode_dgl,uniTabel_dgl,srcList_dgl,dstList_dgl)
+    arr = _CAPI_MapByNodeSet(lhsNode_dgl,rhsNode_dgl,uniTabel_dgl,srcList_dgl,dstList_dgl,include_rhs_in_lhs)
     srcList = utils.toindex(arr(0),dtype='int32').tousertensor()
     dstList = utils.toindex(arr(1),dtype='int32').tousertensor()
     uni = utils.toindex(arr(2),dtype='int32').tousertensor()
@@ -2584,6 +2588,20 @@ def cooTocsr(inptr,indice,addr,srcList,dstList):
     array = _CAPI_COOTOCSR(inptr_dgl,indice_dgl,addr_dgl,srcList_dgl,dstList_dgl)
     indice = utils.toindex(array(0),dtype='int32').tousertensor()
     addr = utils.toindex(array(1),dtype='int32').tousertensor()
+
+
+def lpGraph(srcList,dstList,nodeTable):
+    tensorList = [srcList,dstList,nodeTable]
+    for t in tensorList:
+        assert t.dtype == th.int32, "Expected dtype to be th.int32"
+        assert t.is_cuda, "Expected the tensor to be on 'cuda'"
+    srcList_dgl = F.to_dgl_nd(srcList)
+    dstList_dgl = F.to_dgl_nd(dstList)
+    nodeTable_dgl = F.to_dgl_nd(nodeTable)
+
+    array = _CAPI_LPGraph(srcList_dgl,dstList_dgl,nodeTable_dgl)
+    nodeTable = utils.toindex(array(0),dtype='int32').tousertensor()
+
 
 def _coalesce_edge_frame(g, edge_maps, counts, aggregator):
     r"""Coalesce edge features of duplicate edges via given aggregator in g.

@@ -193,8 +193,8 @@ void
 c_loss_csr(IdArray &raw_ptr,IdArray &new_ptr,IdArray &raw_indice,IdArray &new_indice);
 void
 c_cooTocsr(IdArray &inptr,IdArray &indice,IdArray &addr,IdArray &srcList,IdArray &dstList);
-
-
+void
+c_lpGraph(IdArray &srcList,IdArray &dstList,IdArray &nodeTable,IdArray &tmpNodeTable);
 template<>
 std::tuple<HeteroGraphPtr, std::vector<IdArray>>
 ToBlock<kDLGPU, int32_t>(HeteroGraphPtr graph,
@@ -352,6 +352,17 @@ cooTocsr<kDLGPU, int32_t>(
   c_cooTocsr(inptr,indice,addr,srcList,dstList);
 }
 
+template<>
+void
+lpGraph<kDLGPU, int32_t>(
+  IdArray &srcList,
+  IdArray &dstList,
+  IdArray &nodeTable
+) {
+  IdArray tmpNodeTable = Full(INT_MAX,nodeTable->shape[0],srcList->ctx);
+  c_lpGraph(srcList,dstList,nodeTable,tmpNodeTable);
+}
+
 
 #endif  // DGL_USE_CUDA
 
@@ -453,10 +464,11 @@ DGL_REGISTER_GLOBAL("transform._CAPI_MapByNodeSet")
     IdArray uniTabel =args[2];
     IdArray srcList =args[3];
     IdArray dstList = args[4];
+    bool include_rhs_in_lhs = args[5];
     IdArray new_src;
     IdArray new_dst;
     IdArray unqiue_nodes;
-    bool include_rhs_in_lhs = true;
+    
     std::tie(new_src, new_dst , unqiue_nodes) = 
       mapByNodeTable<kDLGPU, int32_t>(lhsNodes,rhsNodes,uniTabel,srcList,dstList,include_rhs_in_lhs); 
     *rv = ConvertNDArrayVectorToPackedFunc({new_src, new_dst , unqiue_nodes});
@@ -531,7 +543,15 @@ DGL_REGISTER_GLOBAL("transform._CAPI_COOTOCSR")
     *rv = ConvertNDArrayVectorToPackedFunc({indice,addr});
   });
 
-
+DGL_REGISTER_GLOBAL("transform._CAPI_LPGraph")
+.set_body([] (DGLArgs args, DGLRetValue *rv) {
+    IdArray srcList = args[0];
+    IdArray dstList = args[1];
+    IdArray nodeTable = args[2];
+    
+    lpGraph<kDLGPU, int32_t>(srcList,dstList,nodeTable);
+    *rv = ConvertNDArrayVectorToPackedFunc({nodeTable});
+  });
 
 };  // namespace transform
 
