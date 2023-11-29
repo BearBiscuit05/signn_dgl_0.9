@@ -289,16 +289,17 @@ dgl.per_pagerank(src,dst,degreeTable,nodeValue,nodeInfo)
     return:
         None: 直接在nodeValue,nodeInfo中进行修改
 """
-# degreeTable = torch.Tensor([1,1,1,1,1,1,1,1,1,1,1,1]).to(torch.int32).cuda()
-# src = torch.Tensor([0,4,4,1,5,5,3,6,6,7,7,2]).to(torch.int32).cuda()
-# dst = torch.Tensor([4,8,5,5,8,6,6,7,8,8,4,7]).to(torch.int32).cuda()
-# edgeTable = torch.zeros_like(src).to(torch.int32).cuda()
-# nodeValue = torch.Tensor([0,0,1000000,0,0,0,0,0]).to(torch.int32).cuda()
-# nodeInfo = torch.Tensor([1,2,4,8,0,0,0,0,0,0,0,0]).to(torch.int32).cuda()
-# edgeTable,nodeValue,nodeInfo = dgl.per_pagerank(src,dst,edgeTable,degreeTable,nodeValue,nodeInfo)
-# print("edgeTable:",edgeTable)
-# print("nodeValue:",nodeValue)
-# print("nodeInfo:",nodeInfo)
+degreeTable = torch.Tensor([1,1,1,1,1,1,1,1,1,1,1,1]).to(torch.int32).cuda()
+src = torch.Tensor([0,4,4,1,5,5,3,6,6,7,7,2]).to(torch.int32).cuda()
+dst = torch.Tensor([4,8,5,5,8,6,6,7,8,8,4,7]).to(torch.int32).cuda()
+edgeTable = torch.zeros_like(src).to(torch.int32).cuda()
+nodeValue = torch.Tensor([0,0,1000000,0,0,0,0,0]).to(torch.int32).cuda()
+nodeInfo = torch.Tensor([1,2,4,8,0,0,0,0,0,0,0,0]).to(torch.int32).cuda()
+print("nodeInfo:",nodeInfo)
+edgeTable,nodeValue,nodeInfo = dgl.per_pagerank(src,dst,edgeTable,degreeTable,nodeValue,nodeInfo)
+print("edgeTable:",edgeTable)
+print("nodeValue:",nodeValue)
+print("nodeInfo:",nodeInfo)
 
 """
 分区中
@@ -376,8 +377,8 @@ dgl.lpGraph(src,dst,nodeTable): 双向进行
 dgl.bincount(nodelist,nodeTable)
     对离散值分布就行求解
 """
-src = torch.Tensor([0,2,4,5,3,4,2,5]).to(torch.int32).cuda()
-nodeTable = torch.zeros(torch.max(src).item()+1,dtype=torch.int32,device="cuda")
-print("nodeLabel :",nodeTable)
-dgl.bincount(src,nodeTable)
-print("nodeLabel :",nodeTable)
+# src = torch.Tensor([0,2,4,5,3,4,2,5]).to(torch.int32).cuda()
+# nodeTable = torch.zeros(torch.max(src).item()+1,dtype=torch.int32,device="cuda")
+# print("nodeLabel :",nodeTable)
+# dgl.bincount(src,nodeTable)
+# print("nodeLabel :",nodeTable)

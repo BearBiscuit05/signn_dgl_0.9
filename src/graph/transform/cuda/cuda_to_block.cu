@@ -298,6 +298,22 @@ __global__ void ToMergeTable(
 }
 
 template <int BLOCK_SIZE, int TILE_SIZE>
+__global__ void ToMergeLabelTable(
+  int* nodeTable,
+  int* tmpTable,
+  int64_t nodeNUM
+) {
+  const size_t block_start = TILE_SIZE * blockIdx.x;
+  const size_t block_end = TILE_SIZE * (blockIdx.x + 1);
+  for (size_t index = threadIdx.x + block_start; index < block_end;
+      index += BLOCK_SIZE) {
+    if (index < nodeNUM) {
+      nodeTable[index] = nodeTable[index] | tmpTable[index];
+    }
+  }
+}
+
+template <int BLOCK_SIZE, int TILE_SIZE>
 __global__ void ToUseBfsWithEdgeKernel(
   int* nodeTable,
   int* tmpTable,
@@ -1342,8 +1358,8 @@ c_PPR(
   ToMergeTable<blockSize, slice>
     <<<_grid,_block>>>(in_nodeValue,in_tmpNodeValue,nodeNUM,true);
   cudaDeviceSynchronize();
-  ToMergeTable<blockSize, slice>
-    <<<_grid,_block>>>(in_nodeInfo,in_tmpNodeInfo,nodeNUM,false);
+  ToMergeLabelTable<blockSize, slice>
+    <<<_grid,_block>>>(in_nodeInfo,in_tmpNodeInfo,nodeNUM);
   cudaDeviceSynchronize();
 
 }
