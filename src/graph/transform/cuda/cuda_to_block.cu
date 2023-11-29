@@ -612,6 +612,26 @@ __global__ void findMinLabelKernel(
 }
 
 
+template <int BLOCK_SIZE, int TILE_SIZE>
+__global__ void bincountKernel(
+  int* nodelist,
+  int* nodeTable,
+  int64_t edgeNUM
+) {
+  const size_t block_start = TILE_SIZE * blockIdx.x;
+  const size_t block_end = TILE_SIZE * (blockIdx.x + 1);
+  for (size_t index = threadIdx.x + block_start; index < block_end;
+      index += BLOCK_SIZE) {
+    if (index < edgeNUM) {
+      int id = nodelist[index];
+      atomicAdd(&nodeTable[id], 1);
+    }
+  }
+}
+
+
+
+
 // Since partial specialization is not allowed for functions, use this as an
 // intermediate for ToBlock where XPU = kDLGPU.
 template<typename IdType>
@@ -1413,6 +1433,26 @@ c_lpGraph(
     <<<grid_,block_>>>(in_nodeTable,in_tmpNodeTable,nodeNUM,false);
     cudaDeviceSynchronize();
   }
+
+void
+c_bincount(
+  IdArray &nodelist,
+  IdArray &nodeTable) {
+    int64_t edgeNUM = nodelist->shape[0];
+    const int slice = 1024;
+    const int blockSize = 256;
+    int steps = (edgeNUM + slice - 1) / slice;
+    dim3 grid(steps);
+    dim3 block(blockSize);
+
+    int32_t* in_nodelist = static_cast<int32_t*>(nodelist->data);
+    int32_t* in_nodeTable = static_cast<int32_t*>(nodeTable->data);
+
+    bincountKernel<blockSize, slice>
+      <<<grid,block>>>(in_nodelist,in_nodeTable,edgeNUM);
+    cudaDeviceSynchronize();
+
+}
 
 }  // namespace transform
 }  // namespace dgl

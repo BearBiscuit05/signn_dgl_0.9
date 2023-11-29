@@ -195,6 +195,9 @@ void
 c_cooTocsr(IdArray &inptr,IdArray &indice,IdArray &addr,IdArray &srcList,IdArray &dstList);
 void
 c_lpGraph(IdArray &srcList,IdArray &dstList,IdArray &nodeTable,IdArray &tmpNodeTable);
+void
+c_bincount(IdArray &nodelist,IdArray &nodeTable);
+
 template<>
 std::tuple<HeteroGraphPtr, std::vector<IdArray>>
 ToBlock<kDLGPU, int32_t>(HeteroGraphPtr graph,
@@ -361,6 +364,15 @@ lpGraph<kDLGPU, int32_t>(
 ) {
   IdArray tmpNodeTable = Full(INT_MAX,nodeTable->shape[0],srcList->ctx);
   c_lpGraph(srcList,dstList,nodeTable,tmpNodeTable);
+}
+
+template<>
+void
+bincount<kDLGPU, int32_t>(
+  IdArray &nodelist,
+  IdArray &nodeTable
+) {
+  c_bincount(nodelist,nodeTable);
 }
 
 
@@ -552,6 +564,17 @@ DGL_REGISTER_GLOBAL("transform._CAPI_LPGraph")
     lpGraph<kDLGPU, int32_t>(srcList,dstList,nodeTable);
     *rv = ConvertNDArrayVectorToPackedFunc({nodeTable});
   });
+
+DGL_REGISTER_GLOBAL("transform._CAPI_BINCOUNT")
+.set_body([] (DGLArgs args, DGLRetValue *rv) {
+    IdArray nodelist = args[0];
+    IdArray nodeTable = args[1];
+    
+    bincount<kDLGPU, int32_t>(nodelist,nodeTable);
+    *rv = ConvertNDArrayVectorToPackedFunc({nodeTable});
+  });
+
+
 
 };  // namespace transform
 

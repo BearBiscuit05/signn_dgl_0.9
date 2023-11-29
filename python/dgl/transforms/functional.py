@@ -97,7 +97,8 @@ __all__ = [
     'per_pagerank',
     'loss_csr',
     'cooTocsr',
-    'lpGraph'
+    'lpGraph',
+    'bincount'
     ]
 
 
@@ -2600,6 +2601,17 @@ def lpGraph(srcList,dstList,nodeTable):
     nodeTable_dgl = F.to_dgl_nd(nodeTable)
 
     array = _CAPI_LPGraph(srcList_dgl,dstList_dgl,nodeTable_dgl)
+    nodeTable = utils.toindex(array(0),dtype='int32').tousertensor()
+
+def bincount(nodelist,nodeTable):
+    tensorList = [nodelist,nodeTable]
+    for t in tensorList:
+        assert t.dtype == th.int32, "Expected dtype to be th.int32"
+        assert t.is_cuda, "Expected the tensor to be on 'cuda'"
+    nodelist_dgl = F.to_dgl_nd(nodelist)
+    nodeTable_dgl = F.to_dgl_nd(nodeTable)
+
+    array = _CAPI_BINCOUNT(nodelist_dgl,nodeTable_dgl)
     nodeTable = utils.toindex(array(0),dtype='int32').tousertensor()
 
 

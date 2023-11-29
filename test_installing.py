@@ -364,9 +364,20 @@ dgl.cooTocsr(inptr,indice,addr,srcList,dstList)
 dgl.lpGraph(src,dst,nodeTable): 双向进行
     进行标签传递
 """
+# src = torch.Tensor([0,2,4,5,3,4,2,5]).to(torch.int32).cuda()
+# dst = torch.Tensor([1,3,7,6,4,2,1,3]).to(torch.int32).cuda()
+# nodeLabel = torch.Tensor([-1,-1,2,3,4,-1,-1,-1]).to(torch.int32).cuda()
+# print("nodeLabel :",nodeLabel)
+# dgl.lpGraph(src,dst,nodeLabel)
+# print("nodeLabel :",nodeLabel)
+
+
+"""
+dgl.bincount(nodelist,nodeTable)
+    对离散值分布就行求解
+"""
 src = torch.Tensor([0,2,4,5,3,4,2,5]).to(torch.int32).cuda()
-dst = torch.Tensor([1,3,7,6,4,2,1,3]).to(torch.int32).cuda()
-nodeLabel = torch.Tensor([-1,-1,2,3,4,-1,-1,-1]).to(torch.int32).cuda()
-print("nodeLabel :",nodeLabel)
-dgl.lpGraph(src,dst,nodeLabel)
-print("nodeLabel :",nodeLabel)
+nodeTable = torch.zeros(torch.max(src).item()+1,dtype=torch.int32,device="cuda")
+print("nodeLabel :",nodeTable)
+dgl.bincount(src,nodeTable)
+print("nodeLabel :",nodeTable)

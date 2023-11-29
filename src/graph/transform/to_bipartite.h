@@ -114,6 +114,11 @@ void
 lpGraph(
 IdArray &srcList,IdArray &dstList,IdArray &nodeTable);
 
+template<DLDeviceType XPU, typename IdType>
+void
+bincount(
+IdArray &nodelist,IdArray &nodeTable);
+
 }  // namespace transform
 }  // namespace dgl
 
