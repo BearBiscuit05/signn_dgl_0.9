@@ -594,10 +594,10 @@ __global__ void lpGraphKernel(
         } else {
           atomicMin(&tmpNodeTable[srcId], minlabel);
         }
-      } else if(srcLabel >= 0) {  
-        atomicMin(&tmpNodeTable[dstId], srcLabel);
+      } else if(srcLabel >= 0) { // 对于非训练点的邻居，标签设置为负值 
+        atomicMin(&tmpNodeTable[dstId], -srcLabel);
       } else {
-        atomicMin(&tmpNodeTable[srcId], dstLabel);   
+        atomicMin(&tmpNodeTable[srcId], -dstLabel);   
       }
     }
   }
@@ -617,7 +617,7 @@ __global__ void findMinLabelKernel(
       int nodeId = index;
       tmpNodeTable[nodeId] = -1;
       int curLabel = nodeId;
-      if (nodeTable[nodeId] == -1)
+      if (nodeTable[nodeId] < 0)
         continue;
       while(nodeTable[curLabel] != curLabel) {
         curLabel = nodeTable[curLabel];
