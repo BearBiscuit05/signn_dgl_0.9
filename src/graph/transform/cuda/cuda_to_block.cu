@@ -489,7 +489,6 @@ template <int BLOCK_SIZE, int TILE_SIZE>
 __global__ void PPRkernel(
   int* src,
   int* dst,
-  int* edgeTable,
   int* degreeTable,
   int* in_nodeValue,
   int* in_nodeInfo,
@@ -510,10 +509,7 @@ __global__ void PPRkernel(
         float value = in_nodeValue[srcId];
         int src_info = in_nodeInfo[srcId];
         int dst_info = in_nodeInfo[dstId] | src_info;
-        edgeTable[index] = src_info;
         atomicOr(&in_tmpNodeInfo[dstId],dst_info);
-        // if(value == 0.0f)
-        //   continue;
         float con = value * d * decay / (10000.0f * degree);
         atomicAdd(&in_tmpNodeValue[dstId], int(con*10000));
       }
@@ -1322,7 +1318,6 @@ void
 c_PPR(
   IdArray &src,
   IdArray &dst,
-  IdArray &edgeTable,
   IdArray &degreeTable,
   IdArray &nodeValue,
   IdArray &nodeInfo,
@@ -1338,7 +1333,6 @@ c_PPR(
 
   int32_t* in_src = static_cast<int32_t*>(src->data);
   int32_t* in_dst = static_cast<int32_t*>(dst->data);
-  int32_t* in_edgeTable = static_cast<int32_t*>(edgeTable->data);
   int32_t* in_degreeTable = static_cast<int32_t*>(degreeTable->data);
   int32_t* in_nodeValue = static_cast<int32_t*>(nodeValue->data);
   int32_t* in_nodeInfo= static_cast<int32_t*>(nodeInfo->data);
@@ -1347,7 +1341,7 @@ c_PPR(
   
 
   PPRkernel<blockSize, slice>
-    <<<grid,block>>>(in_src,in_dst,in_edgeTable,in_degreeTable,in_nodeValue,in_nodeInfo,in_tmpNodeValue,in_tmpNodeInfo,edgeNUM);
+    <<<grid,block>>>(in_src,in_dst,in_degreeTable,in_nodeValue,in_nodeInfo,in_tmpNodeValue,in_tmpNodeInfo,edgeNUM);
   cudaDeviceSynchronize();
 
   int64_t nodeNUM = nodeValue->shape[0];
