@@ -2546,10 +2546,13 @@ def calculateP(DegreeTabel,PTabel,srcList,dstList,fanout):
     return PTabel
 
 def per_pagerank(src,dst,degreeTable,nodeValue,nodeInfo):
-    tensorList = [src,dst,degreeTable,nodeValue,nodeInfo]
+    tensorList = [src,dst,degreeTable,nodeValue]
     for t in tensorList:
         assert t.dtype == th.int32, "Expected dtype to be th.int32"
         assert t.is_cuda, "Expected the tensor to be on 'cuda'"
+    assert nodeInfo.dtype == th.int64, "Expected dtype to be th.int64"
+    assert nodeInfo.is_cuda, "Expected the tensor to be on 'cuda'"
+    
     src_dgl = F.to_dgl_nd(src)
     dst_dgl = F.to_dgl_nd(dst)
     nodeValue_dgl = F.to_dgl_nd(nodeValue)
@@ -2557,7 +2560,7 @@ def per_pagerank(src,dst,degreeTable,nodeValue,nodeInfo):
     degreeTable_dgl = F.to_dgl_nd(degreeTable)
     array = _CAPI_PPR(src_dgl,dst_dgl,degreeTable_dgl,nodeValue_dgl,nodeInfo_dgl)
     out_nodeValue = utils.toindex(array(0),dtype='int32').tousertensor()
-    out_nodeInfo = utils.toindex(array(1),dtype='int32').tousertensor()
+    out_nodeInfo = utils.toindex(array(1),dtype='int64').tousertensor()
     return out_nodeValue,out_nodeInfo
 
 def loss_csr(raw_ptr,new_ptr,raw_indice,new_indice):

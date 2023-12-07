@@ -327,7 +327,8 @@ PPR<kDLGPU, int32_t>(
   IdArray &nodeInfo
 ) {
   IdArray tmpNodeValue = Full(0,nodeValue->shape[0],src->ctx);
-  IdArray tmpNodeInfo = Full(0,nodeInfo->shape[0],src->ctx);
+  int64_t zero64 = 0;
+  IdArray tmpNodeInfo = Full(zero64,nodeInfo->shape[0],src->ctx);
   c_PPR(src,dst,degreeTable,nodeValue,nodeInfo,tmpNodeValue,tmpNodeInfo);
 }
 
