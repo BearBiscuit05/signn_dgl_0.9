@@ -2558,7 +2558,7 @@ def per_pagerank(src,dst,degreeTable,nodeValue,nodeInfo,labelTableNUM=1):
     degreeTable_dgl = F.to_dgl_nd(degreeTable)
     array = _CAPI_PPR(src_dgl,dst_dgl,degreeTable_dgl,nodeValue_dgl,nodeInfo_dgl,labelTableNUM)
     out_nodeValue = utils.toindex(array(0),dtype='int32').tousertensor()
-    out_nodeInfo = utils.toindex(array(1),dtype='int64').tousertensor()
+    out_nodeInfo = utils.toindex(array(1),dtype='int32').tousertensor()
     return out_nodeValue,out_nodeInfo
 
 def loss_csr(raw_ptr,new_ptr,raw_indice,new_indice):
