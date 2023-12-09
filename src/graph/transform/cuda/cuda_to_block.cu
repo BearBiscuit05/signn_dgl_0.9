@@ -1350,7 +1350,7 @@ c_PPR(
     <<<grid,block>>>(in_src,in_dst,in_degreeTable,in_nodeValue,in_nodeInfo,in_tmpNodeValue,in_tmpNodeInfo,edgeNUM,tableNUM);
   cudaDeviceSynchronize();
 
-  int64_t nodeNUM = nodeValue->shape[0] * 2;
+  int64_t nodeNUM = nodeValue->shape[0];
   steps = (nodeNUM + slice - 1) / slice;
   dim3 _grid(steps);
   dim3 _block(blockSize);
