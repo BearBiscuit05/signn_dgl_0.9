@@ -194,7 +194,7 @@ c_loss_csr(IdArray &raw_ptr,IdArray &new_ptr,IdArray &raw_indice,IdArray &new_in
 void
 c_cooTocsr(IdArray &inptr,IdArray &indice,IdArray &addr,IdArray &srcList,IdArray &dstList);
 void
-c_lpGraph(IdArray &srcList,IdArray &dstList,IdArray &nodeTable,IdArray &tmpNodeTable);
+c_lpGraph(IdArray &srcList,IdArray &dstList,IdArray &nodeTable,IdArray &tmpNodeTable,IdArray &InNodeTable,IdArray &OutNodeTable);
 void
 c_bincount(IdArray &nodelist,IdArray &nodeTable);
 
@@ -359,10 +359,12 @@ void
 lpGraph<kDLGPU, int32_t>(
   IdArray &srcList,
   IdArray &dstList,
-  IdArray &nodeTable
+  IdArray &nodeTable,
+  IdArray &InNodeTable,
+  IdArray &OutNodeTable
 ) {
   IdArray tmpNodeTable = Full(INT_MAX,nodeTable->shape[0],srcList->ctx);
-  c_lpGraph(srcList,dstList,nodeTable,tmpNodeTable);
+  c_lpGraph(srcList,dstList,nodeTable,tmpNodeTable,InNodeTable,OutNodeTable);
 }
 
 template<>
@@ -558,9 +560,10 @@ DGL_REGISTER_GLOBAL("transform._CAPI_LPGraph")
     IdArray srcList = args[0];
     IdArray dstList = args[1];
     IdArray nodeTable = args[2];
-    
-    lpGraph<kDLGPU, int32_t>(srcList,dstList,nodeTable);
-    *rv = ConvertNDArrayVectorToPackedFunc({nodeTable});
+    IdArray InNodeTable = args[3];
+    IdArray OutNodeTable = args[4];
+    lpGraph<kDLGPU, int32_t>(srcList,dstList,nodeTable,InNodeTable,OutNodeTable);
+    *rv = ConvertNDArrayVectorToPackedFunc({nodeTable,InNodeTable,OutNodeTable});
   });
 
 DGL_REGISTER_GLOBAL("transform._CAPI_BINCOUNT")

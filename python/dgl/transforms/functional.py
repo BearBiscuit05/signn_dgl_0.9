@@ -2589,17 +2589,20 @@ def cooTocsr(inptr,indice,addr,srcList,dstList):
     addr = utils.toindex(array(1),dtype='int32').tousertensor()
 
 
-def lpGraph(srcList,dstList,nodeTable):
-    tensorList = [srcList,dstList,nodeTable]
+def lpGraph(srcList,dstList,nodeTable,InNodeTable,OutNodeTable):
+    tensorList = [srcList,dstList,nodeTable,InNodeTable,OutNodeTable]
     for t in tensorList:
         assert t.dtype == th.int32, "Expected dtype to be th.int32"
         assert t.is_cuda, "Expected the tensor to be on 'cuda'"
     srcList_dgl = F.to_dgl_nd(srcList)
     dstList_dgl = F.to_dgl_nd(dstList)
     nodeTable_dgl = F.to_dgl_nd(nodeTable)
-
-    array = _CAPI_LPGraph(srcList_dgl,dstList_dgl,nodeTable_dgl)
+    InNodeTable_dgl = F.to_dgl_nd(InNodeTable)
+    OutNodeTable_dgl = F.to_dgl_nd(OutNodeTable)
+    array = _CAPI_LPGraph(srcList_dgl,dstList_dgl,nodeTable_dgl,InNodeTable_dgl,OutNodeTable_dgl)
     nodeTable = utils.toindex(array(0),dtype='int32').tousertensor()
+    InNodeTable = utils.toindex(array(1),dtype='int32').tousertensor()
+    OutNodeTable = utils.toindex(array(2),dtype='int32').tousertensor()
 
 def bincount(nodelist,nodeTable):
     tensorList = [nodelist,nodeTable]

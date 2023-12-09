@@ -1410,7 +1410,9 @@ c_lpGraph(
   IdArray &srcList,
   IdArray &dstList,
   IdArray &nodeTable,
-  IdArray &tmpNodeTable) {
+  IdArray &tmpNodeTable,
+  IdArray &InNodeTable,
+  IdArray &OutNodeTable) {
     int64_t edgeNUM = srcList->shape[0];
     const int slice = 1024;
     const int blockSize = 256;
@@ -1422,7 +1424,13 @@ c_lpGraph(
     int32_t* in_dstList = static_cast<int32_t*>(dstList->data);
     int32_t* in_nodeTable = static_cast<int32_t*>(nodeTable->data);
     int32_t* in_tmpNodeTable = static_cast<int32_t*>(tmpNodeTable->data);
-    
+    int32_t* in_InNodeTable = static_cast<int32_t*>(InNodeTable->data);
+    int32_t* in_OutNodeTable = static_cast<int32_t*>(OutNodeTable->data);
+
+    SumDegreeKernel<blockSize, slice>
+      <<<grid,block>>>(in_InNodeTable,in_OutNodeTable,in_srcList,in_dstList,edgeNUM);
+    cudaDeviceSynchronize();
+
     lpGraphKernel<blockSize, slice>
       <<<grid,block>>>(in_srcList,in_dstList,in_nodeTable,in_tmpNodeTable,edgeNUM);
     cudaDeviceSynchronize();

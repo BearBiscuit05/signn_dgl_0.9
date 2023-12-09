@@ -112,7 +112,7 @@ IdArray &inptr,IdArray &indice,IdArray &addr,IdArray &srcList,IdArray &dstList);
 template<DLDeviceType XPU, typename IdType>
 void
 lpGraph(
-IdArray &srcList,IdArray &dstList,IdArray &nodeTable);
+IdArray &srcList,IdArray &dstList,IdArray &nodeTable,IdArray &InNodeTable,IdArray &OutNodeTable);
 
 template<DLDeviceType XPU, typename IdType>
 void
