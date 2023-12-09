@@ -97,7 +97,7 @@ IdArray &DegreeTabel,IdArray &PTabel,IdArray &srcList,IdArray &dstList,int64_t f
 template<DLDeviceType XPU, typename IdType>
 void
 PPR(
-IdArray &src,IdArray &dst,IdArray &nodeTable,IdArray &nodeValue,IdArray &nodeInfo); 
+IdArray &src,IdArray &dst,IdArray &nodeTable,IdArray &nodeValue,IdArray &nodeInfo,int64_t tableNUM); 
 
 template<DLDeviceType XPU, typename IdType>
 void

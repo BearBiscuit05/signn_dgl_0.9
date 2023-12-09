@@ -275,7 +275,7 @@ dgl.findSameNode(tensor1,tensor2,indexTable1,indexTable2)
 
 
 """
-dgl.per_pagerank(src,dst,degreeTable,nodeValue,nodeInfo)
+dgl.per_pagerank(src,dst,degreeTable,nodeValue,nodeInfo,labelTableNUM)
     用于计算每个点的pagerank,并传递分区信息
     src -> dst
     
@@ -285,19 +285,19 @@ dgl.per_pagerank(src,dst,degreeTable,nodeValue,nodeInfo)
         degreeTable(int32,cuda) : 表示图度信息
         nodeValue(int32,cuda)   : 表示图权值
         nodeInfo(int32,cuda)    : 表示图需要传递的信息
-    
+        labelTableNUM(int64)    : 表示label需要多少个nodeInfo才能存储标签
     return:
         None: 直接在nodeValue,nodeInfo中进行修改
 """
-# degreeTable = torch.Tensor([1,1,1,1,1,1,1,1,1,1,1,1]).to(torch.int32).cuda()
-# src = torch.Tensor([0,4,4,1,5,5,3,6,6,7,7,2]).to(torch.int32).cuda()
-# dst = torch.Tensor([4,8,5,5,8,6,6,7,8,8,4,7]).to(torch.int32).cuda()
-# nodeValue = torch.Tensor([0,0,1000000,0,0,0,0,0]).to(torch.int32).cuda()
-# nodeInfo = torch.Tensor([1,2,4,8,0,0,0,0,0,0,0,0]).to(torch.int32).cuda()
-# print("nodeInfo:",nodeInfo)
-# nodeValue,nodeInfo = dgl.per_pagerank(src,dst,degreeTable,nodeValue,nodeInfo)
-# print("nodeValue:",nodeValue)
-# print("nodeInfo:",nodeInfo)
+degreeTable = torch.Tensor([1,1,1,1,1,1,1,1]).to(torch.int32).cuda()
+src = torch.Tensor([0,4,4,1,5,5,3,6,6,7,7,2]).to(torch.int32).cuda()
+dst = torch.Tensor([4,8,5,5,8,6,6,7,8,8,4,7]).to(torch.int32).cuda()
+nodeValue = torch.Tensor([0,0,1000000,0,0,0,0,0]).to(torch.int32).cuda()
+nodeInfo = torch.Tensor([1,2,4,8,1,2,4,8,0,0,0,0,0,0,0,0]).to(torch.int32).cuda()
+print("nodeInfo:",nodeInfo)
+nodeValue,nodeInfo = dgl.per_pagerank(src,dst,degreeTable,nodeValue,nodeInfo,labelTableNUM=2)
+print("nodeValue:",nodeValue)
+print("nodeInfo:",nodeInfo)
 
 """
 分区中
@@ -363,19 +363,16 @@ dgl.cooTocsr(inptr,indice,addr,srcList,dstList)
 dgl.lpGraph(src,dst,nodeTable): 双向进行
     进行标签传递
 """
-src = torch.Tensor([0,2,4,5,3,4,2,5]).to(torch.int32).cuda()
-dst = torch.Tensor([1,3,7,6,4,2,1,3]).to(torch.int32).cuda()
-nodeLabel = torch.Tensor([-1,-1,2,3,4,-1,-1,-1]).to(torch.int32).cuda()
-inNodeTable = torch.Tensor([0,0,0,0,0,0,0,0,0,0]).to(torch.int32).cuda()
-outNodeTable = torch.Tensor([0,0,0,0,0,0,0,0,0,0]).to(torch.int32).cuda()
-print("nodeLabel :",nodeLabel)
-dgl.lpGraph(src,dst,nodeLabel,inNodeTable,outNodeTable)
-print("nodeLabel :",nodeLabel)
-print("inNodeTable :",inNodeTable)
-print("outNodeTable :",outNodeTable)
-
-
-
+# src = torch.Tensor([0,2,4,5,3,4,2,5]).to(torch.int32).cuda()
+# dst = torch.Tensor([1,3,7,6,4,2,1,3]).to(torch.int32).cuda()
+# nodeLabel = torch.Tensor([-1,-1,2,3,4,-1,-1,-1]).to(torch.int32).cuda()
+# inNodeTable = torch.Tensor([0,0,0,0,0,0,0,0,0,0]).to(torch.int32).cuda()
+# outNodeTable = torch.Tensor([0,0,0,0,0,0,0,0,0,0]).to(torch.int32).cuda()
+# print("nodeLabel :",nodeLabel)
+# dgl.lpGraph(src,dst,nodeLabel,inNodeTable,outNodeTable)
+# print("nodeLabel :",nodeLabel)
+# print("inNodeTable :",inNodeTable)
+# print("outNodeTable :",outNodeTable)
 
 
 """

@@ -2545,17 +2545,18 @@ def calculateP(DegreeTabel,PTabel,srcList,dstList,fanout):
     PTabel = utils.toindex(arr(0),dtype='int32').tousertensor()
     return PTabel
 
-def per_pagerank(src,dst,degreeTable,nodeValue,nodeInfo):
+def per_pagerank(src,dst,degreeTable,nodeValue,nodeInfo,labelTableNUM=1):
     tensorList = [src,dst,degreeTable,nodeValue,nodeInfo]
     for t in tensorList:
         assert t.dtype == th.int32, "Expected dtype to be th.int32"
         assert t.is_cuda, "Expected the tensor to be on 'cuda'"
+    assert len(nodeInfo) == labelTableNUM * len(degreeTable), "nodeInfo length is not match the labelTableNUM"
     src_dgl = F.to_dgl_nd(src)
     dst_dgl = F.to_dgl_nd(dst)
     nodeValue_dgl = F.to_dgl_nd(nodeValue)
     nodeInfo_dgl = F.to_dgl_nd(nodeInfo)
     degreeTable_dgl = F.to_dgl_nd(degreeTable)
-    array = _CAPI_PPR(src_dgl,dst_dgl,degreeTable_dgl,nodeValue_dgl,nodeInfo_dgl)
+    array = _CAPI_PPR(src_dgl,dst_dgl,degreeTable_dgl,nodeValue_dgl,nodeInfo_dgl,labelTableNUM)
     out_nodeValue = utils.toindex(array(0),dtype='int32').tousertensor()
     out_nodeInfo = utils.toindex(array(1),dtype='int32').tousertensor()
     return out_nodeValue,out_nodeInfo

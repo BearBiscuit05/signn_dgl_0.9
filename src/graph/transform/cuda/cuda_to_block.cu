@@ -494,7 +494,8 @@ __global__ void PPRkernel(
   int* in_nodeInfo,
   int* in_tmpNodeValue,
   int* in_tmpNodeInfo,
-  int64_t edgeNUM) {
+  int64_t edgeNUM,
+  int64_t tableNUM) {
     // src -> dst value and info
     float d = 0.85;
     float decay = 0.01;
@@ -507,9 +508,13 @@ __global__ void PPRkernel(
         int dstId = dst[index];
         int degree = degreeTable[srcId];
         float value = in_nodeValue[srcId];
-        int src_info = in_nodeInfo[srcId];
-        int dst_info = in_nodeInfo[dstId] | src_info;
-        atomicOr(&in_tmpNodeInfo[dstId],dst_info);
+        // label propagation
+        for (int tableIdx = 0 ; tableIdx < tableNUM ; tableIdx++){
+          int src_info = in_nodeInfo[srcId*tableNUM + tableIdx];
+          int dst_info = in_nodeInfo[dstId*tableNUM + tableIdx] | src_info;
+          atomicOr(&in_tmpNodeInfo[dstId*tableNUM + tableIdx],dst_info);
+        }
+        // pagerank
         float con = value * d * decay / (10000.0f * degree);
         atomicAdd(&in_tmpNodeValue[dstId], int(con*10000));
       }
@@ -1322,7 +1327,8 @@ c_PPR(
   IdArray &nodeValue,
   IdArray &nodeInfo,
   IdArray &tmpNodeValue,
-  IdArray &tmpNodeInfo) {
+  IdArray &tmpNodeInfo,
+  int64_t tableNUM) {
 
   int64_t edgeNUM = src->shape[0];
   const int slice = 1024;
@@ -1341,7 +1347,7 @@ c_PPR(
   
 
   PPRkernel<blockSize, slice>
-    <<<grid,block>>>(in_src,in_dst,in_degreeTable,in_nodeValue,in_nodeInfo,in_tmpNodeValue,in_tmpNodeInfo,edgeNUM);
+    <<<grid,block>>>(in_src,in_dst,in_degreeTable,in_nodeValue,in_nodeInfo,in_tmpNodeValue,in_tmpNodeInfo,edgeNUM,tableNUM);
   cudaDeviceSynchronize();
 
   int64_t nodeNUM = nodeValue->shape[0];
@@ -1352,8 +1358,13 @@ c_PPR(
   ToMergeTable<blockSize, slice>
     <<<_grid,_block>>>(in_nodeValue,in_tmpNodeValue,nodeNUM,true);
   cudaDeviceSynchronize();
+  
+  nodeNUM = tmpNodeInfo->shape[0];
+  steps = (nodeNUM + slice - 1) / slice;
+  dim3 __grid(steps);
+  dim3 __block(blockSize);
   ToMergeLabelTable<blockSize, slice>
-    <<<_grid,_block>>>(in_nodeInfo,in_tmpNodeInfo,nodeNUM);
+    <<<__grid,__block>>>(in_nodeInfo,in_tmpNodeInfo,nodeNUM);
   cudaDeviceSynchronize();
 
 }

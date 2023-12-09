@@ -188,7 +188,7 @@ c_SumDegree(IdArray &InNodeTabel,IdArray &OutNodeTabel,IdArray &srcList,IdArray 
 void
 c_calculateP(IdArray &DegreeTabel,IdArray &PTabel,IdArray &srcList,IdArray &dstList,int64_t fanout);
 void
-c_PPR(IdArray &src,IdArray &dst,IdArray &degreeTable,IdArray &nodeValue,IdArray &nodeInfo,IdArray &tmpNodeValue,IdArray &tmpNodeInfo);
+c_PPR(IdArray &src,IdArray &dst,IdArray &degreeTable,IdArray &nodeValue,IdArray &nodeInfo,IdArray &tmpNodeValue,IdArray &tmpNodeInfo,int64_t tableNUM);
 void
 c_loss_csr(IdArray &raw_ptr,IdArray &new_ptr,IdArray &raw_indice,IdArray &new_indice);
 void
@@ -324,11 +324,12 @@ PPR<kDLGPU, int32_t>(
   IdArray &dst,
   IdArray &degreeTable,
   IdArray &nodeValue,
-  IdArray &nodeInfo
+  IdArray &nodeInfo,
+  int64_t tableNUM
 ) {
   IdArray tmpNodeValue = Full(0,nodeValue->shape[0],src->ctx);
   IdArray tmpNodeInfo = Full(0,nodeInfo->shape[0],src->ctx);
-  c_PPR(src,dst,degreeTable,nodeValue,nodeInfo,tmpNodeValue,tmpNodeInfo);
+  c_PPR(src,dst,degreeTable,nodeValue,nodeInfo,tmpNodeValue,tmpNodeInfo,tableNUM);
 }
 
 template<>
@@ -527,7 +528,8 @@ DGL_REGISTER_GLOBAL("transform._CAPI_PPR")
     IdArray degreeTable = args[2];
     IdArray nodeValue =args[3];
     IdArray nodeInfo = args[4];
-    PPR<kDLGPU, int32_t>(src,dst,degreeTable,nodeValue,nodeInfo);
+    int64_t tableNUM = args[5];
+    PPR<kDLGPU, int32_t>(src,dst,degreeTable,nodeValue,nodeInfo,tableNUM);
     *rv = ConvertNDArrayVectorToPackedFunc({nodeValue,nodeInfo});
   });
 
