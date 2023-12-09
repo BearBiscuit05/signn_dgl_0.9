@@ -97,7 +97,7 @@ IdArray &DegreeTabel,IdArray &PTabel,IdArray &srcList,IdArray &dstList,int64_t f
 template<DLDeviceType XPU, typename IdType>
 void
 PPR(
-IdArray &src,IdArray &dst,IdArray &nodeTable,IdArray &nodeValue,IdArray &nodeInfo); 
+IdArray &src,IdArray &dst,IdArray &nodeTable,IdArray &nodeValue,IdArray &nodeInfo,int64_t tableNUM); 
 
 template<DLDeviceType XPU, typename IdType>
 void
@@ -112,7 +112,7 @@ IdArray &inptr,IdArray &indice,IdArray &addr,IdArray &srcList,IdArray &dstList);
 template<DLDeviceType XPU, typename IdType>
 void
 lpGraph(
-IdArray &srcList,IdArray &dstList,IdArray &nodeTable);
+IdArray &srcList,IdArray &dstList,IdArray &nodeTable,IdArray &InNodeTable,IdArray &OutNodeTable);
 
 template<DLDeviceType XPU, typename IdType>
 void

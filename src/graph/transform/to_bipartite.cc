@@ -188,13 +188,13 @@ c_SumDegree(IdArray &InNodeTabel,IdArray &OutNodeTabel,IdArray &srcList,IdArray 
 void
 c_calculateP(IdArray &DegreeTabel,IdArray &PTabel,IdArray &srcList,IdArray &dstList,int64_t fanout);
 void
-c_PPR(IdArray &src,IdArray &dst,IdArray &degreeTable,IdArray &nodeValue,IdArray &nodeInfo,IdArray &tmpNodeValue,IdArray &tmpNodeInfo);
+c_PPR(IdArray &src,IdArray &dst,IdArray &degreeTable,IdArray &nodeValue,IdArray &nodeInfo,IdArray &tmpNodeValue,IdArray &tmpNodeInfo,int64_t tableNUM);
 void
 c_loss_csr(IdArray &raw_ptr,IdArray &new_ptr,IdArray &raw_indice,IdArray &new_indice);
 void
 c_cooTocsr(IdArray &inptr,IdArray &indice,IdArray &addr,IdArray &srcList,IdArray &dstList);
 void
-c_lpGraph(IdArray &srcList,IdArray &dstList,IdArray &nodeTable,IdArray &tmpNodeTable);
+c_lpGraph(IdArray &srcList,IdArray &dstList,IdArray &nodeTable,IdArray &tmpNodeTable,IdArray &InNodeTable,IdArray &OutNodeTable);
 void
 c_bincount(IdArray &nodelist,IdArray &nodeTable);
 
@@ -324,12 +324,12 @@ PPR<kDLGPU, int32_t>(
   IdArray &dst,
   IdArray &degreeTable,
   IdArray &nodeValue,
-  IdArray &nodeInfo
+  IdArray &nodeInfo,
+  int64_t tableNUM
 ) {
   IdArray tmpNodeValue = Full(0,nodeValue->shape[0],src->ctx);
-  int64_t zero64 = 0;
-  IdArray tmpNodeInfo = Full(zero64,nodeInfo->shape[0],src->ctx);
-  c_PPR(src,dst,degreeTable,nodeValue,nodeInfo,tmpNodeValue,tmpNodeInfo);
+  IdArray tmpNodeInfo = Full(0,nodeInfo->shape[0],src->ctx);
+  c_PPR(src,dst,degreeTable,nodeValue,nodeInfo,tmpNodeValue,tmpNodeInfo,tableNUM);
 }
 
 template<>
@@ -360,10 +360,12 @@ void
 lpGraph<kDLGPU, int32_t>(
   IdArray &srcList,
   IdArray &dstList,
-  IdArray &nodeTable
+  IdArray &nodeTable,
+  IdArray &InNodeTable,
+  IdArray &OutNodeTable
 ) {
   IdArray tmpNodeTable = Full(INT_MAX,nodeTable->shape[0],srcList->ctx);
-  c_lpGraph(srcList,dstList,nodeTable,tmpNodeTable);
+  c_lpGraph(srcList,dstList,nodeTable,tmpNodeTable,InNodeTable,OutNodeTable);
 }
 
 template<>
@@ -526,7 +528,8 @@ DGL_REGISTER_GLOBAL("transform._CAPI_PPR")
     IdArray degreeTable = args[2];
     IdArray nodeValue =args[3];
     IdArray nodeInfo = args[4];
-    PPR<kDLGPU, int32_t>(src,dst,degreeTable,nodeValue,nodeInfo);
+    int64_t tableNUM = args[5];
+    PPR<kDLGPU, int32_t>(src,dst,degreeTable,nodeValue,nodeInfo,tableNUM);
     *rv = ConvertNDArrayVectorToPackedFunc({nodeValue,nodeInfo});
   });
 
@@ -559,9 +562,10 @@ DGL_REGISTER_GLOBAL("transform._CAPI_LPGraph")
     IdArray srcList = args[0];
     IdArray dstList = args[1];
     IdArray nodeTable = args[2];
-    
-    lpGraph<kDLGPU, int32_t>(srcList,dstList,nodeTable);
-    *rv = ConvertNDArrayVectorToPackedFunc({nodeTable});
+    IdArray InNodeTable = args[3];
+    IdArray OutNodeTable = args[4];
+    lpGraph<kDLGPU, int32_t>(srcList,dstList,nodeTable,InNodeTable,OutNodeTable);
+    *rv = ConvertNDArrayVectorToPackedFunc({nodeTable,InNodeTable,OutNodeTable});
   });
 
 DGL_REGISTER_GLOBAL("transform._CAPI_BINCOUNT")

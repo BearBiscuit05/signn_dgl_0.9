@@ -2545,20 +2545,18 @@ def calculateP(DegreeTabel,PTabel,srcList,dstList,fanout):
     PTabel = utils.toindex(arr(0),dtype='int32').tousertensor()
     return PTabel
 
-def per_pagerank(src,dst,degreeTable,nodeValue,nodeInfo):
-    tensorList = [src,dst,degreeTable,nodeValue]
+def per_pagerank(src,dst,degreeTable,nodeValue,nodeInfo,labelTableNUM=1):
+    tensorList = [src,dst,degreeTable,nodeValue,nodeInfo]
     for t in tensorList:
         assert t.dtype == th.int32, "Expected dtype to be th.int32"
         assert t.is_cuda, "Expected the tensor to be on 'cuda'"
-    assert nodeInfo.dtype == th.int64, "Expected dtype to be th.int64"
-    assert nodeInfo.is_cuda, "Expected the tensor to be on 'cuda'"
-    
+    assert len(nodeInfo) == labelTableNUM * len(degreeTable), "nodeInfo length is not match the labelTableNUM"
     src_dgl = F.to_dgl_nd(src)
     dst_dgl = F.to_dgl_nd(dst)
     nodeValue_dgl = F.to_dgl_nd(nodeValue)
     nodeInfo_dgl = F.to_dgl_nd(nodeInfo)
     degreeTable_dgl = F.to_dgl_nd(degreeTable)
-    array = _CAPI_PPR(src_dgl,dst_dgl,degreeTable_dgl,nodeValue_dgl,nodeInfo_dgl)
+    array = _CAPI_PPR(src_dgl,dst_dgl,degreeTable_dgl,nodeValue_dgl,nodeInfo_dgl,labelTableNUM)
     out_nodeValue = utils.toindex(array(0),dtype='int32').tousertensor()
     out_nodeInfo = utils.toindex(array(1),dtype='int64').tousertensor()
     return out_nodeValue,out_nodeInfo
@@ -2592,17 +2590,20 @@ def cooTocsr(inptr,indice,addr,srcList,dstList):
     addr = utils.toindex(array(1),dtype='int32').tousertensor()
 
 
-def lpGraph(srcList,dstList,nodeTable):
-    tensorList = [srcList,dstList,nodeTable]
+def lpGraph(srcList,dstList,nodeTable,InNodeTable,OutNodeTable):
+    tensorList = [srcList,dstList,nodeTable,InNodeTable,OutNodeTable]
     for t in tensorList:
         assert t.dtype == th.int32, "Expected dtype to be th.int32"
         assert t.is_cuda, "Expected the tensor to be on 'cuda'"
     srcList_dgl = F.to_dgl_nd(srcList)
     dstList_dgl = F.to_dgl_nd(dstList)
     nodeTable_dgl = F.to_dgl_nd(nodeTable)
-
-    array = _CAPI_LPGraph(srcList_dgl,dstList_dgl,nodeTable_dgl)
+    InNodeTable_dgl = F.to_dgl_nd(InNodeTable)
+    OutNodeTable_dgl = F.to_dgl_nd(OutNodeTable)
+    array = _CAPI_LPGraph(srcList_dgl,dstList_dgl,nodeTable_dgl,InNodeTable_dgl,OutNodeTable_dgl)
     nodeTable = utils.toindex(array(0),dtype='int32').tousertensor()
+    InNodeTable = utils.toindex(array(1),dtype='int32').tousertensor()
+    OutNodeTable = utils.toindex(array(2),dtype='int32').tousertensor()
 
 def bincount(nodelist,nodeTable):
     tensorList = [nodelist,nodeTable]

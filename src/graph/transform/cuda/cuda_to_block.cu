@@ -314,22 +314,6 @@ __global__ void ToMergeLabelTable(
 }
 
 template <int BLOCK_SIZE, int TILE_SIZE>
-__global__ void ToMergeLabelTable_u(
-  u_int32_t* nodeTable,
-  u_int32_t* tmpTable,
-  int64_t nodeNUM
-) {
-  const size_t block_start = TILE_SIZE * blockIdx.x;
-  const size_t block_end = TILE_SIZE * (blockIdx.x + 1);
-  for (size_t index = threadIdx.x + block_start; index < block_end;
-      index += BLOCK_SIZE) {
-    if (index < nodeNUM) {
-      nodeTable[index] = nodeTable[index] | tmpTable[index];
-    }
-  }
-}
-
-template <int BLOCK_SIZE, int TILE_SIZE>
 __global__ void ToUseBfsWithEdgeKernel(
   int* nodeTable,
   int* tmpTable,
@@ -507,10 +491,11 @@ __global__ void PPRkernel(
   int* dst,
   int* degreeTable,
   int* in_nodeValue,
-  u_int32_t* in_nodeInfo,
+  int* in_nodeInfo,
   int* in_tmpNodeValue,
-  u_int32_t* in_tmpNodeInfo,
-  int64_t edgeNUM) {
+  int* in_tmpNodeInfo,
+  int64_t edgeNUM,
+  int64_t tableNUM) {
     // src -> dst value and info
     float d = 0.85;
     float decay = 0.01;
@@ -523,12 +508,13 @@ __global__ void PPRkernel(
         int dstId = dst[index];
         int degree = degreeTable[srcId];
         float value = in_nodeValue[srcId];
-        u_int32_t src_info_low = in_nodeInfo[srcId*2];
-        u_int32_t dst_info_low = in_nodeInfo[dstId*2] | src_info_low;
-        u_int32_t src_info_high = in_nodeInfo[srcId*2+1];
-        u_int32_t dst_info_high = in_nodeInfo[dstId*2+1] | src_info_high;
-        atomicOr(&in_tmpNodeInfo[dstId*2],dst_info_low);
-        atomicOr(&in_tmpNodeInfo[dstId*2+1],dst_info_high);
+        // label propagation
+        for (int tableIdx = 0 ; tableIdx < tableNUM ; tableIdx++){
+          int src_info = in_nodeInfo[srcId*tableNUM + tableIdx];
+          int dst_info = in_nodeInfo[dstId*tableNUM + tableIdx] | src_info;
+          atomicOr(&in_tmpNodeInfo[dstId*tableNUM + tableIdx],dst_info);
+        }
+        // pagerank
         float con = value * d * decay / (10000.0f * degree);
         atomicAdd(&in_tmpNodeValue[dstId], int(con*10000));
       }
@@ -1341,7 +1327,8 @@ c_PPR(
   IdArray &nodeValue,
   IdArray &nodeInfo,
   IdArray &tmpNodeValue,
-  IdArray &tmpNodeInfo) {
+  IdArray &tmpNodeInfo,
+  int64_t tableNUM) {
 
   int64_t edgeNUM = src->shape[0];
   const int slice = 1024;
@@ -1350,17 +1337,17 @@ c_PPR(
   dim3 grid(steps);
   dim3 block(blockSize);
 
-  int32_t* in_src = static_cast<int32_t*>(src->data);
-  int32_t* in_dst = static_cast<int32_t*>(dst->data);
-  int32_t* in_degreeTable = static_cast<int32_t*>(degreeTable->data);
-  int32_t* in_nodeValue = static_cast<int32_t*>(nodeValue->data);
-  u_int32_t* in_nodeInfo= static_cast<u_int32_t*>(nodeInfo->data);
-  int32_t* in_tmpNodeValue = static_cast<int32_t*>(tmpNodeValue->data);
-  u_int32_t* in_tmpNodeInfo= static_cast<u_int32_t*>(tmpNodeInfo->data);
+  int* in_src = static_cast<int*>(src->data);
+  int* in_dst = static_cast<int*>(dst->data);
+  int* in_degreeTable = static_cast<int*>(degreeTable->data);
+  int* in_nodeValue = static_cast<int*>(nodeValue->data);
+  int* in_nodeInfo= static_cast<int*>(nodeInfo->data);
+  int* in_tmpNodeValue = static_cast<int*>(tmpNodeValue->data);
+  int* in_tmpNodeInfo= static_cast<int*>(tmpNodeInfo->data);
   
 
   PPRkernel<blockSize, slice>
-    <<<grid,block>>>(in_src,in_dst,in_degreeTable,in_nodeValue,in_nodeInfo,in_tmpNodeValue,in_tmpNodeInfo,edgeNUM);
+    <<<grid,block>>>(in_src,in_dst,in_degreeTable,in_nodeValue,in_nodeInfo,in_tmpNodeValue,in_tmpNodeInfo,edgeNUM,tableNUM);
   cudaDeviceSynchronize();
 
   int64_t nodeNUM = nodeValue->shape[0] * 2;
@@ -1371,8 +1358,13 @@ c_PPR(
   ToMergeTable<blockSize, slice>
     <<<_grid,_block>>>(in_nodeValue,in_tmpNodeValue,nodeNUM,true);
   cudaDeviceSynchronize();
-  ToMergeLabelTable_u<blockSize, slice>
-    <<<_grid,_block>>>(in_nodeInfo,in_tmpNodeInfo,nodeNUM);
+  
+  nodeNUM = tmpNodeInfo->shape[0];
+  steps = (nodeNUM + slice - 1) / slice;
+  dim3 __grid(steps);
+  dim3 __block(blockSize);
+  ToMergeLabelTable<blockSize, slice>
+    <<<__grid,__block>>>(in_nodeInfo,in_tmpNodeInfo,nodeNUM);
   cudaDeviceSynchronize();
 
 }
@@ -1429,7 +1421,9 @@ c_lpGraph(
   IdArray &srcList,
   IdArray &dstList,
   IdArray &nodeTable,
-  IdArray &tmpNodeTable) {
+  IdArray &tmpNodeTable,
+  IdArray &InNodeTable,
+  IdArray &OutNodeTable) {
     int64_t edgeNUM = srcList->shape[0];
     const int slice = 1024;
     const int blockSize = 256;
@@ -1441,7 +1435,13 @@ c_lpGraph(
     int32_t* in_dstList = static_cast<int32_t*>(dstList->data);
     int32_t* in_nodeTable = static_cast<int32_t*>(nodeTable->data);
     int32_t* in_tmpNodeTable = static_cast<int32_t*>(tmpNodeTable->data);
-    
+    int32_t* in_InNodeTable = static_cast<int32_t*>(InNodeTable->data);
+    int32_t* in_OutNodeTable = static_cast<int32_t*>(OutNodeTable->data);
+
+    SumDegreeKernel<blockSize, slice>
+      <<<grid,block>>>(in_InNodeTable,in_OutNodeTable,in_srcList,in_dstList,edgeNUM);
+    cudaDeviceSynchronize();
+
     lpGraphKernel<blockSize, slice>
       <<<grid,block>>>(in_srcList,in_dstList,in_nodeTable,in_tmpNodeTable,edgeNUM);
     cudaDeviceSynchronize();
