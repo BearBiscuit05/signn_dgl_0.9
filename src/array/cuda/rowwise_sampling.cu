@@ -297,8 +297,8 @@ __global__ void _CSRRowWiseSampleWithEdgeAndMapKernel(
           for (int j = 0; j < deg && picked < num_picks  ; ++j) {
               int selected_j = curand(&local_state) % (deg - j);
               int selected_node_id = in_index[in_row_start + selected_j];
-              // in_index[in_row_start + selected_j] = in_index[in_row_start+deg-j-1];
-              // in_index[in_row_start+deg-j-1] = selected_node_id;
+              in_index[in_row_start + selected_j] = in_index[in_row_start+deg-j-1];
+              in_index[in_row_start+deg-j-1] = selected_node_id;
               if(in_mapTable[selected_node_id] < 0)
                   continue;
               else {
