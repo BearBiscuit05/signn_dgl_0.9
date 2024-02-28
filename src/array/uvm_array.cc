@@ -58,6 +58,13 @@ DGL_REGISTER_GLOBAL("ndarray.uvm._CAPI_DGLIndexSelectCPUFromGPU")
     *rv = IndexSelectCPUFromGPU(array, index);
   });
 
+DGL_REGISTER_GLOBAL("transform._CAPI_DGLIndexSelectCPUFromGPU")
+.set_body([] (DGLArgs args, DGLRetValue* rv) {
+    NDArray array = args[0];
+    IdArray index = args[1];
+    *rv = IndexSelectCPUFromGPU(array, index);
+  });
+
 DGL_REGISTER_GLOBAL("ndarray.uvm._CAPI_DGLIndexScatterGPUToCPU")
 .set_body([] (DGLArgs args, DGLRetValue* rv) {
     NDArray dest = args[0];
