@@ -450,6 +450,13 @@ DGL_REGISTER_GLOBAL("transform._CAPI_fastFindNeighbor")
     *rv = ConvertNDArrayVectorToPackedFunc({nodeTable});
   });
 
+// DGL_REGISTER_GLOBAL("transform._CAPI_DGLIndexSelectCPUFromGPU")
+// .set_body([] (DGLArgs args, DGLRetValue* rv) {
+//     NDArray array = args[0];
+//     IdArray index = args[1];
+//     *rv = IndexSelectCPUFromGPU(array, index);
+//   });
+
 DGL_REGISTER_GLOBAL("transform._CAPI_fastFindNeigEdge")
 .set_body([] (DGLArgs args, DGLRetValue *rv) {
     IdArray nodeTable = args[0];
