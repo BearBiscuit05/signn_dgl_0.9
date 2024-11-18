@@ -62,34 +62,21 @@ dgl.sampling.sample_with_edge(inptr, indices, seed, seed_num,fanout, outSRC,outD
 # print(outSRC)
 # print(outDST)
 
-src = torch.Tensor([0,1,5,9,15,15]).to(torch.int32).cuda()
-dst = torch.Tensor([0,1,5,6,7,2,2,10,12,14,5,7,8,1,2]).to(torch.int32).cuda()
-uni = torch.Tensor([1,2]).to(torch.int32).cuda()
-mapTable = torch.zeros(15).to(torch.int32)
-seed_num = uni.shape[0]
-fanout = 2
-mapTable = mapTable.cuda()
-outSRC = torch.zeros(20).to(torch.int32).cuda()
-outDST = torch.zeros(20).to(torch.int32).cuda()
-NUM = dgl.sampling.sample_with_edge_and_map(src, dst, uni, seed_num,fanout, outSRC,outDST,mapTable)
+# src = torch.Tensor([0,1,5,9,15,15]).to(torch.int32).cuda()
+# dst = torch.Tensor([0,1,5,6,7,2,2,10,12,14,5,7,8,1,2]).to(torch.int32).cuda()
+# uni = torch.Tensor([1,2]).to(torch.int32).cuda()
+# mapTable = torch.zeros(15).to(torch.int32)
+# seed_num = uni.shape[0]
+# fanout = 2
+# mapTable = mapTable.cuda()
+# outSRC = torch.zeros(20).to(torch.int32).cuda()
+# outDST = torch.zeros(20).to(torch.int32).cuda()
+# NUM = dgl.sampling.sample_with_edge_and_map(src, dst, uni, seed_num,fanout, outSRC,outDST,mapTable)
 
-uni = torch.Tensor([3]).to(torch.int32).cuda()
-seed_num = uni.shape[0]
-NUM = dgl.sampling.sample_with_edge_and_map(src, dst, uni, seed_num,fanout, outSRC,outDST,mapTable)
+# uni = torch.Tensor([3]).to(torch.int32).cuda()
+# seed_num = uni.shape[0]
+# NUM = dgl.sampling.sample_with_edge_and_map(src, dst, uni, seed_num,fanout, outSRC,outDST,mapTable)
 
-
-
-
-# =========================haloTest===========================
-# ptr = torch.Tensor([0,1,4,6,8,10]).to(torch.int32).cuda()
-# inlice = torch.Tensor([3,-1,-1,-1,8,6,-1,-1,6,10]).to(torch.int32).cuda()
-# edge = torch.Tensor([99,97,96,92,81,110]).to(torch.int32).cuda()
-# bound = torch.Tensor([0,3,4,6]).to(torch.int32).cuda()
-# gap = 0
-# dgl.loadGraphHalo(ptr,inlice,edge,bound,gap)
-
-# print(ptr)
-# print(inlice)
 
 
 """
@@ -107,8 +94,8 @@ dgl.fastFindNeighbor(nodeTable,src,dst,accumulate=False,flag=1)
         None: 仅在nodeTable中进行修改
 """
 # nodeTable = torch.Tensor([0,0,1,0,0,0,0,0,0,0]).to(torch.int32).cuda()
-# src = torch.Tensor([0,2,4,5,2,4,5,2]).to(torch.int32).cuda()
-# dst = torch.Tensor([1,3,7,6,4,2,3,3]).to(torch.int32).cuda()
+# src = torch.Tensor([0,2,4,5,2,4,5,2]).to(torch.int32)#.cuda()
+# dst = torch.Tensor([1,3,7,6,4,2,3,3]).to(torch.int32)#.cuda()
 # acc = False
 # print("===> BFS func test")
 # print(nodeTable)
@@ -170,11 +157,11 @@ dgl.mapLocalId(mapTable,Gid,Lid)
     return:
         None: Lid中进行修改
 """
-# nodeTable = torch.Tensor([0,5,4,7,2,3,1,8]).to(torch.int32).cuda()
-# Gid = torch.Tensor([0,1,2]).to(torch.int32).cuda()
-# Lid = torch.zeros_like(Gid).to(torch.int32).cuda()
-# dgl.mapLocalId(nodeTable,Gid,Lid)
-# print(Lid)
+nodeTable = torch.Tensor([0,5,4,7,2,3,1,8]).to(torch.int32).cuda()
+Gid = torch.Tensor([0,1,2,0]).to(torch.int32).cuda()
+Lid = torch.zeros_like(Gid).to(torch.int32).cuda()
+dgl.mapLocalId(nodeTable,Gid,Lid)
+print(Lid)
 
 
 
@@ -227,17 +214,17 @@ dgl.mapByNodeSet(nodeTable,uniTable,srcList,dstList)
         dst(int32,cuda)         : 表示重排后图的终止列
         uniTable(int32,cuda)    : 图被排序后的id映射表,长度已进行修改
 """
-nodeTable = torch.Tensor([2,0,5,4,0,1,2,3,4,5]).to(torch.int32).cuda()
-uniTable = torch.zeros_like(nodeTable).to(torch.int32).cuda()
-Gid = torch.Tensor([2,3,4,5]).to(torch.int32).cuda()
-Lid = torch.zeros_like(Gid).to(torch.int32).cuda() + 1
-print(Gid)
-print(Lid)
-Gid,Lid,uniTable = dgl.mapByNodeSet(nodeTable,uniTable,Gid,Lid)
-print(nodeTable)
-print(uniTable)
-print(Gid)
-print(Lid)
+# nodeTable = torch.Tensor([2,0,5,4,0,1,2,3,4,5]).to(torch.int32).cuda()
+# uniTable = torch.zeros_like(nodeTable).to(torch.int32).cuda()
+# Gid = torch.Tensor([2,3,4,5]).to(torch.int32).cuda()
+# Lid = torch.zeros_like(Gid).to(torch.int32).cuda() + 1
+# print(Gid)
+# print(Lid)
+# Gid,Lid,uniTable = dgl.mapByNodeSet(nodeTable,uniTable,Gid,Lid)
+# print(nodeTable)
+# print(uniTable)
+# print(Gid)
+# print(Lid)
 
 
 """
@@ -282,15 +269,15 @@ dgl.per_pagerank(src,dst,degreeTable,nodeValue,nodeInfo,labelTableNUM)
     return:
         None: 直接在nodeValue,nodeInfo中进行修改
 """
-degreeTable = torch.Tensor([1,1,1,1,1,1,1,1]).to(torch.int32).cuda()
-src = torch.Tensor([0,4,4,1,5,5,3,6,6,7,7,2]).to(torch.int32).cuda()
-dst = torch.Tensor([4,8,5,5,8,6,6,7,8,8,4,7]).to(torch.int32).cuda()
-nodeValue = torch.Tensor([0,0,1000000,0,0,0,0,0]).to(torch.int32).cuda()
-nodeInfo = torch.Tensor([1,2,4,8,1,2,4,8,0,0,0,0,0,0,0,0]).to(torch.int32).cuda()
-print("nodeInfo:",nodeInfo)
-nodeValue,nodeInfo = dgl.per_pagerank(src,dst,degreeTable,nodeValue,nodeInfo,labelTableNUM=2)
-print("nodeValue:",nodeValue)
-print("nodeInfo:",nodeInfo)
+# degreeTable = torch.Tensor([1,1,1,1,1,1,1,1]).to(torch.int32).cuda()
+# src = torch.Tensor([0,4,4,1,5,5,3,6,6,7,7,2]).to(torch.int32).cuda()
+# dst = torch.Tensor([4,8,5,5,8,6,6,7,8,8,4,7]).to(torch.int32).cuda()
+# nodeValue = torch.Tensor([0,0,1000000,0,0,0,0,0]).to(torch.int32).cuda()
+# nodeInfo = torch.Tensor([1,2,4,8,1,2,4,8,0,0,0,0,0,0,0,0]).to(torch.int32).cuda()
+# print("nodeInfo:",nodeInfo)
+# nodeValue,nodeInfo = dgl.per_pagerank(src,dst,degreeTable,nodeValue,nodeInfo,labelTableNUM=2)
+# print("nodeValue:",nodeValue)
+# print("nodeInfo:",nodeInfo)
 
 """
 分区中
@@ -324,22 +311,22 @@ dgl.loss_csr(raw_ptr,new_ptr,raw_indice,new_indice)
     return:
         None: 直接在nodeValue,nodeInfo中进行修改
 """
-raw_ptr = torch.tensor([0, 2, 5, 8, 11, 14, 17, 20], dtype=torch.int32)
-raw_indice = torch.tensor([0, 1, 3, 2, 4, 5, 0, 1, 6, 2, 3, 4, 6, 0, 1, 5, 2, 3, 4], dtype=torch.int32)
-ptr_diff = torch.diff(raw_ptr)
-select_idx = torch.tensor([0], dtype=torch.int64)
-ptr_diff[select_idx] = 0 
-new_ptr = torch.cat((torch.zeros(1).to(torch.int32),torch.cumsum(ptr_diff,dim = 0).to(torch.int32)))
-new_indice = torch.zeros(new_ptr[-1].item()-1).to(torch.int32)
-raw_ptr = raw_ptr.cuda()
-raw_indice = raw_indice.cuda()
-new_ptr = new_ptr.cuda()
-new_indice = new_indice.cuda()
-print("raw_ptr: ",raw_ptr)
-print("raw_indice: ",raw_indice)
-dgl.loss_csr(raw_ptr,new_ptr,raw_indice,new_indice)
-print("new_ptr: ",new_ptr)
-print("new_indice: ",new_indice)
+# raw_ptr = torch.tensor([0, 2, 5, 8, 11, 14, 17, 20], dtype=torch.int32)
+# raw_indice = torch.tensor([0, 1, 3, 2, 4, 5, 0, 1, 6, 2, 3, 4, 6, 0, 1, 5, 2, 3, 4], dtype=torch.int32)
+# ptr_diff = torch.diff(raw_ptr)
+# select_idx = torch.tensor([0], dtype=torch.int64)
+# ptr_diff[select_idx] = 0 
+# new_ptr = torch.cat((torch.zeros(1).to(torch.int32),torch.cumsum(ptr_diff,dim = 0).to(torch.int32)))
+# new_indice = torch.zeros(new_ptr[-1].item()-1).to(torch.int32)
+# raw_ptr = raw_ptr.cuda()
+# raw_indice = raw_indice.cuda()
+# new_ptr = new_ptr.cuda()
+# new_indice = new_indice.cuda()
+# print("raw_ptr: ",raw_ptr)
+# print("raw_indice: ",raw_indice)
+# dgl.loss_csr(raw_ptr,new_ptr,raw_indice,new_indice)
+# print("new_ptr: ",new_ptr)
+# print("new_indice: ",new_indice)
 
 
 """

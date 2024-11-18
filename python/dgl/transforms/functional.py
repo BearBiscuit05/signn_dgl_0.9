@@ -2429,28 +2429,6 @@ def to_block(g, dst_nodes=None, include_dst_in_src=True, src_nodes=None):
 
     return new_graph
 
-def remappingNode(arr1,arr2,arr3):
-    tensorList = [arr1,arr2,arr3]
-    for t in tensorList:
-        assert t.dtype == th.int32, "Expected dtype to be th.int32"
-        assert t.is_cuda, "Expected the tensor to be on 'cuda'"
-    arr1_dgl = F.to_dgl_nd(arr1)
-    arr2_dgl = F.to_dgl_nd(arr2)
-    arr3_dgl = F.to_dgl_nd(arr3)
-    arr = _CAPI_ReMappingId(arr1_dgl,arr2_dgl,arr3_dgl)
-    arr1_ = utils.toindex(arr(0),dtype='int32').tousertensor()
-    arr2_ = utils.toindex(arr(1),dtype='int32').tousertensor()
-    arr3_ = utils.toindex(arr(2),dtype='int32').tousertensor()
-    return arr1_,arr2_,arr3_
-
-def loadGraphHalo(indptr,indices,edges,bound,gap):
-    indptr_dgl = F.to_dgl_nd(indptr)
-    indices_dgl = F.to_dgl_nd(indices)
-    edges_dgl = F.to_dgl_nd(edges)
-    bounds_dgl = F.to_dgl_nd(bound)
-    arr = _CAPI_loadHalo(indptr_dgl,indices_dgl,edges_dgl,bounds_dgl,gap)
-    indptr = utils.toindex(arr(0),dtype='int32').tousertensor()
-    indices = utils.toindex(arr(1),dtype='int32').tousertensor()
 
 def pin_memory_inplace(tensor):
     """Register the tensor into pinned memory in-place (i.e. without copying).
@@ -2497,6 +2475,28 @@ def gather_pinned_tensor_rows(tensor, rows):
     """
     return F.from_dgl_nd(_CAPI_DGLIndexSelectCPUFromGPU(F.to_dgl_nd(tensor), F.to_dgl_nd(rows)))
 
+def remappingNode(arr1,arr2,arr3):
+    tensorList = [arr1,arr2,arr3]
+    for t in tensorList:
+        assert t.dtype == th.int32, "Expected dtype to be th.int32"
+        assert t.is_cuda, "Expected the tensor to be on 'cuda'"
+    arr1_dgl = F.to_dgl_nd(arr1)
+    arr2_dgl = F.to_dgl_nd(arr2)
+    arr3_dgl = F.to_dgl_nd(arr3)
+    arr = _CAPI_ReMappingId(arr1_dgl,arr2_dgl,arr3_dgl)
+    arr1_ = utils.toindex(arr(0),dtype='int32').tousertensor()
+    arr2_ = utils.toindex(arr(1),dtype='int32').tousertensor()
+    arr3_ = utils.toindex(arr(2),dtype='int32').tousertensor()
+    return arr1_,arr2_,arr3_
+
+def loadGraphHalo(indptr,indices,edges,bound,gap):
+    indptr_dgl = F.to_dgl_nd(indptr)
+    indices_dgl = F.to_dgl_nd(indices)
+    edges_dgl = F.to_dgl_nd(edges)
+    bounds_dgl = F.to_dgl_nd(bound)
+    arr = _CAPI_loadHalo(indptr_dgl,indices_dgl,edges_dgl,bounds_dgl,gap)
+    indptr = utils.toindex(arr(0),dtype='int32').tousertensor()
+    indices = utils.toindex(arr(1),dtype='int32').tousertensor()
 
 def fastFindNeighbor(nodeTable,srcList,dstList,accumulate=False,flag=1):
     nodeTable_dgl = F.to_dgl_nd(nodeTable)
