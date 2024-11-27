@@ -19,6 +19,30 @@ DGL is an easy-to-use, high performance and scalable Python package for deep lea
   <b>Figure</b>: DGL Overall Architecture
 </p>
 
+---
+## Install capsule dgl
+
+1.First, we need to pull the repository with modifications
+
+```sh
+git clone https://github.com/BearBiscuit05/capsule_dgl_0.9.git
+git submodule update --init --recursive
+```
+
+2.Run the build script directly
+
+```sh
+./rebuild.sh
+```
+
+3.Test if the installation was successful
+
+```sh
+python test_installing.py
+```
+
+---
+
 ## Highlighted Features
 
 ### A GPU-ready graph library
